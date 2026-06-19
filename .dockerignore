@@ -1,0 +1,10 @@
+*
+!Dockerfile
+!.dockerignore
+!requirements.txt
+!render.yaml
+!README.yt-dlp-api.md
+!main.py
+!__init__.py
+__pycache__/
+*.pyc

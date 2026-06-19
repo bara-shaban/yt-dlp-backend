@@ -1,0 +1,314 @@
+# yt-dlp Media URL API
+
+Small Dockerized FastAPI service for Render. It accepts a page URL supported by `yt-dlp` and returns the temporary direct media URL that `yt-dlp` resolves.
+
+Use it only for media you own, control, or have permission to access. Returned URLs are usually signed or temporary, and some require the returned request headers to be used by your client.
+
+## Endpoints
+
+- `GET /health`
+- `POST /resolve`
+- `GET /resolve?url=...`
+- `POST /formats`
+- `GET /formats?url=...`
+- `POST /search`
+- `GET /search?q=...`
+- `POST /channels/search`
+- `GET /channels/search?q=...`
+- `POST /channels/videos`
+- `GET /channels/videos?url=...`
+- `GET /stream?url=...`
+- `GET /docs`
+
+## Example request
+
+```bash
+curl -X POST "https://YOUR-RENDER-SERVICE.onrender.com/resolve" \
+  -H "content-type: application/json" \
+  -H "x-api-key: YOUR_API_KEY" \
+  -d '{"url":"https://www.youtube.com/watch?v=dQw4w9WgXcQ","video_format":"best[height<=720]/best"}'
+```
+
+Example response shape:
+
+```json
+{
+  "source_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "requested_format_selector": "best[height<=720]/best",
+  "id": "dQw4w9WgXcQ",
+  "title": "Example title",
+  "extractor": "Youtube",
+  "format_id": "18",
+  "ext": "mp4",
+  "protocol": "https",
+  "direct_url": "https://...",
+  "expires_at": "2026-06-13T04:20:00Z",
+  "headers": {
+    "User-Agent": "..."
+  }
+}
+```
+
+## Optional request fields
+
+```json
+{
+  "url": "https://example.com/watch/123",
+  "format": "best[height<=720]/best",
+  "user_agent": "Custom user agent if the source site needs it",
+  "referer": "https://example.com/",
+  "include_formats": false
+}
+```
+
+Use only one of `format`, `video_format`, or `format_id` in the same request. They all map to the `yt-dlp` format selector, so these are equivalent ways to ask for a specific choice:
+
+```json
+{"url":"https://example.com/watch/123","video_format":"best[height<=720]/best"}
+```
+
+```json
+{"url":"https://example.com/watch/123","format_id":"18"}
+```
+
+By default the service asks `yt-dlp` for a single audio+video URL:
+
+```text
+best[ext=mp4][vcodec!=none][acodec!=none]/best[vcodec!=none][acodec!=none]/best
+```
+
+If you request a separate audio/video format such as `bestvideo+bestaudio`, `direct_url` may be absent and the response will contain a `streams` array instead.
+
+For browser playback, use `/stream` instead of the raw `direct_url`. Some providers bind direct media URLs to the API server IP, so a browser on a different IP may fail to play them.
+
+## Embedded video pages
+
+The service first asks `yt-dlp` to resolve the URL exactly as provided. If that fails, it falls back to a conservative embed scan: it fetches the HTML page, looks for normal `iframe`, `embed`, `video`, `audio`, `source`, and direct media URLs such as `.m3u8`, `.mpd`, or `.mp4`, then asks `yt-dlp` to resolve those candidates.
+
+This is meant for media you own, control, or have permission to access. It does not execute page JavaScript or bypass DRM/paywalls.
+
+Example for an authorized embedded player page:
+
+```bash
+curl -X POST "http://localhost:10001/resolve" \
+  -H "content-type: application/json" \
+  -d '{"url":"https://example.com/embed/player","video_format":"best","referer":"https://example.com/"}'
+```
+
+When the fallback resolves an embedded URL, the response includes:
+
+```json
+{
+  "source_url": "https://example.com/embed/player",
+  "resolved_from_url": "https://cdn.example.com/master.m3u8",
+  "resolved_from_kind": "media-url",
+  "direct_url": "https://..."
+}
+```
+
+## YouTube cookies
+
+Some YouTube videos return:
+
+```text
+Sign in to confirm you're not a bot
+```
+
+For those, export cookies from a browser account that can access the video, convert the Netscape cookies file to base64, and set it in Render as `YTDLP_COOKIES_BASE64`.
+
+On macOS:
+
+```bash
+base64 -i cookies.txt | pbcopy
+```
+
+Then paste the copied value into Render:
+
+```text
+YTDLP_COOKIES_BASE64=...
+```
+
+Redeploy the service after setting it. `/health` will show `"cookies":"configured"` when the app loaded cookies.
+
+To inspect available formats first:
+
+```bash
+curl "https://YOUR-RENDER-SERVICE.onrender.com/formats?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DdQw4w9WgXcQ" \
+  -H "x-api-key: YOUR_API_KEY"
+```
+
+Then pass the chosen `format_id` back to `/resolve`:
+
+```bash
+curl -X POST "https://YOUR-RENDER-SERVICE.onrender.com/resolve" \
+  -H "content-type: application/json" \
+  -H "x-api-key: YOUR_API_KEY" \
+  -d '{"url":"https://www.youtube.com/watch?v=dQw4w9WgXcQ","format_id":"18"}'
+```
+
+## Search
+
+The API also exposes a small YouTube search endpoint for the separate frontend queue UI. It uses `yt-dlp` search, not the private personalized YouTube home feed.
+
+```bash
+curl "http://localhost:10001/search?q=lofi&limit=12"
+```
+
+Response shape:
+
+```json
+{
+  "query": "lofi",
+  "limit": 12,
+  "results": [
+    {
+      "id": "VIDEO_ID",
+      "title": "Example video",
+      "url": "https://www.youtube.com/watch?v=VIDEO_ID",
+      "thumbnail": "https://...",
+      "channel": "Example channel",
+      "duration": 180
+    }
+  ]
+}
+```
+
+Channel search and channel updates are available for the subscription UI:
+
+```bash
+curl "http://localhost:10001/channels/search?q=rick%20astley&limit=8"
+```
+
+```bash
+curl "http://localhost:10001/channels/videos?url=https%3A%2F%2Fwww.youtube.com%2Fchannel%2FUCuAXFkgsw1L7xaCfnd5JJOw&limit=8"
+```
+
+## Local Docker run
+
+```bash
+docker build -t yt-dlp-media-url-api .
+docker run --rm -p 10000:10000 -e API_KEY=dev-secret yt-dlp-media-url-api
+```
+
+Then:
+
+```bash
+curl -X POST "http://localhost:10000/resolve" \
+  -H "content-type: application/json" \
+  -H "x-api-key: dev-secret" \
+  -d '{"url":"https://www.youtube.com/watch?v=dQw4w9WgXcQ"}'
+```
+
+To run on the same local URL used by the frontend and mount exported YouTube cookies:
+
+```bash
+docker run --rm -p 10001:10000 \
+  --mount type=bind,src="$(pwd)/cookies.txt",dst=/run/secrets/youtube-cookies.txt,readonly \
+  -e YTDLP_COOKIES_FILE=/run/secrets/youtube-cookies.txt \
+  yt-dlp-media-url-api
+```
+
+## Render deploy
+
+This directory contains:
+
+- `Dockerfile`
+- `.dockerignore`
+- `render.yaml`
+- `requirements.txt`
+- `main.py`
+- `__init__.py`
+
+Deploy from Render as a Docker web service or use the included Blueprint. If this folder is inside a larger repo, set Render's root directory to `yt_dlp_api`. The app binds to `0.0.0.0` and reads Render's `PORT` environment variable.
+
+## Separate frontend
+
+The `youtube/` folder is a separate static frontend. It is not copied into the API Docker image. It provides a YouTube-style search page, player, cast button, media/resolution selectors, autoplay queue, saved queue, and browser-local subscriptions.
+
+Run it locally:
+
+```bash
+cd youtube
+python3 -m http.server 8080
+```
+
+Then open:
+
+```text
+http://localhost:8080/
+```
+
+By default it calls `http://localhost:10001`. To point it at Render or another API host, add the `api` query parameter:
+
+```text
+http://localhost:8080/?api=https://yt-dlp-media-url-api-0-1-0.onrender.com
+```
+
+You can host `youtube/` anywhere static files are supported. If your API has `API_KEY` set, enter that same value in the frontend's API key field.
+
+The frontend saves one queue, subscriptions, selected media type, selected resolution, and API key in this browser's `localStorage`. The `Queue` button adds to the saved queue. `Play` starts immediate playback without saving that video as history. Direct media URLs are temporary, so saved queue items are re-resolved in the background when the page loads or when you add items.
+
+When a video is selected, the frontend calls `/formats` and populates separate dropdowns for media type, such as MP4, WebM, HLS/m3u8, and audio formats, and resolution, such as 720p or 1080p. Auto mode prefers a combined audio+video stream for browser playback. Choose HLS/m3u8 explicitly if you want an HLS stream.
+
+The cast button uses the Google Cast sender SDK and official launcher when available, with AirPlay/Remote Playback fallback. Cast devices must be discoverable by Chrome/Edge on the same network and must be able to reach the media URL. If the API URL is `localhost`, the frontend tries to cast the direct media URL returned by yt-dlp; for the most reliable Chromecast behavior, host the API/frontend on reachable HTTPS URLs.
+
+## React Native frontend
+
+The `youtube_native/` folder is an Expo React Native version for phones. It uses the same API endpoints as the browser frontend and stores its queue/subscriptions on the device.
+
+```bash
+cd youtube_native
+npm install
+npm start
+```
+
+Scan the QR code with Expo Go. A physical phone cannot use your computer's `localhost`, so set the in-app API URL to your computer's LAN address, for example:
+
+```text
+http://192.168.1.25:10001
+```
+
+or use your Render service URL.
+
+## Push an image for Render to pull
+
+Set the image name to your Docker Hub or GHCR repository, then build and push an amd64 image:
+
+```bash
+docker buildx build --platform linux/amd64 \
+  -t docker.io/YOUR_DOCKERHUB_USER/yt-dlp-media-url-api:0.1.0 \
+  --push .
+```
+
+In Render, create a web service from an existing image and use:
+
+```text
+docker.io/YOUR_DOCKERHUB_USER/yt-dlp-media-url-api:0.1.0
+```
+
+Render does not automatically redeploy image-backed services when a tag changes. Trigger a manual deploy or use the deploy hook after each push.
+
+Set `API_KEY` in Render. If `API_KEY` is empty, the API is public.
+
+Useful environment variables:
+
+- `API_KEY`: optional shared secret for `x-api-key` or `Authorization: Bearer ...`
+- `CORS_ORIGINS`: comma-separated browser origins, default `*`
+- `DEFAULT_FORMAT`: default yt-dlp format selector
+- `YTDLP_COOKIES_BASE64`: base64-encoded Netscape cookies file for sources that require cookies
+- `YTDLP_COOKIES_FILE`: path to a cookies file already present in the container
+- `YTDLP_JS_RUNTIMES`: JavaScript runtimes for yt-dlp challenge solving, default `node`
+- `YTDLP_REMOTE_COMPONENTS`: remote yt-dlp challenge components to allow, default `ejs:github`
+- `REQUEST_TIMEOUT_SECONDS`: default `90`
+- `SOCKET_TIMEOUT_SECONDS`: default `20`
+- `STREAM_TIMEOUT_SECONDS`: default `30`
+- `ENABLE_EMBED_FALLBACK`: inspect simple HTML embeds when the original URL fails, default `true`
+- `EMBED_PAGE_TIMEOUT_SECONDS`: default `15`
+- `EMBED_PAGE_MAX_BYTES`: default `2000000`
+- `MAX_EMBED_CANDIDATES`: default `8`
+- `DEFAULT_USER_AGENT`: browser-like user agent used by embed fallback when no `user_agent` is supplied
+- `MAX_CONCURRENT_REQUESTS`: default `2`
+- `MAX_SEARCH_RESULTS`: default `15`
+- `MAX_CHANNEL_SEARCH_RESULTS`: default `12`
+- `MAX_CHANNEL_VIDEO_RESULTS`: default `18`
+- `ALLOW_PRIVATE_URLS`: default disabled; set `true` only for trusted private deployments

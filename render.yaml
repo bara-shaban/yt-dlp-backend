@@ -1,0 +1,29 @@
+services:
+  - type: web
+    runtime: docker
+    name: yt-dlp-media-url-api
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: API_KEY
+        sync: false
+      - key: YTDLP_COOKIES_BASE64
+        sync: false
+      - key: REQUEST_TIMEOUT_SECONDS
+        value: "90"
+      - key: MAX_CONCURRENT_REQUESTS
+        value: "2"
+      - key: MAX_SEARCH_RESULTS
+        value: "15"
+      - key: MAX_CHANNEL_SEARCH_RESULTS
+        value: "12"
+      - key: MAX_CHANNEL_VIDEO_RESULTS
+        value: "18"
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: YTDLP_JS_RUNTIMES
+        value: "node"
+      - key: YTDLP_REMOTE_COMPONENTS
+        value: "ejs:github"
+      - key: DEFAULT_FORMAT
+        value: "best[ext=mp4][vcodec!=none][acodec!=none]/best[vcodec!=none][acodec!=none]/best"
