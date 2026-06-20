@@ -11,12 +11,6 @@ Use it only for media you own, control, or have permission to access. Returned U
 - `GET /resolve?url=...`
 - `POST /formats`
 - `GET /formats?url=...`
-- `POST /search`
-- `GET /search?q=...`
-- `POST /channels/search`
-- `GET /channels/search?q=...`
-- `POST /channels/videos`
-- `GET /channels/videos?url=...`
 - `GET /stream?url=...`
 - `GET /docs`
 
@@ -146,43 +140,6 @@ curl -X POST "https://YOUR-RENDER-SERVICE.onrender.com/resolve" \
   -d '{"url":"https://www.youtube.com/watch?v=dQw4w9WgXcQ","format_id":"18"}'
 ```
 
-## Search
-
-The API also exposes a small YouTube search endpoint for the separate frontend queue UI. It uses `yt-dlp` search, not the private personalized YouTube home feed.
-
-```bash
-curl "http://localhost:10001/search?q=lofi&limit=12"
-```
-
-Response shape:
-
-```json
-{
-  "query": "lofi",
-  "limit": 12,
-  "results": [
-    {
-      "id": "VIDEO_ID",
-      "title": "Example video",
-      "url": "https://www.youtube.com/watch?v=VIDEO_ID",
-      "thumbnail": "https://...",
-      "channel": "Example channel",
-      "duration": 180
-    }
-  ]
-}
-```
-
-Channel search and channel updates are available for the subscription UI:
-
-```bash
-curl "http://localhost:10001/channels/search?q=rick%20astley&limit=8"
-```
-
-```bash
-curl "http://localhost:10001/channels/videos?url=https%3A%2F%2Fwww.youtube.com%2Fchannel%2FUCuAXFkgsw1L7xaCfnd5JJOw&limit=8"
-```
-
 ## Local Docker run
 
 ```bash
@@ -221,15 +178,14 @@ This directory contains:
 
 Deploy from Render as a Docker web service or use the included Blueprint. If this folder is inside a larger repo, set Render's root directory to `yt_dlp_api`. The app binds to `0.0.0.0` and reads Render's `PORT` environment variable.
 
-## Separate frontend
+## Standalone frontend
 
-The `youtube/` folder is a separate static frontend. It is not copied into the API Docker image. It provides a YouTube-style search page, player, cast button, media/resolution selectors, autoplay queue, saved queue, and browser-local subscriptions.
+The `ui/` folder is a separate static frontend. It is not copied into the API Docker image. It uses the YouTube Data API from the browser for search results, thumbnails, titles, durations, and view counts. Search suggestions are fetched directly by the browser from YouTube/Google's public suggestion endpoint.
 
-Run it locally:
+Run it locally with the frontend dev server. It reads the root `.env` file and serves a generated `config.js` to the browser:
 
 ```bash
-cd youtube
-python3 -m http.server 8080
+node ui/dev-server.mjs
 ```
 
 Then open:
@@ -238,19 +194,17 @@ Then open:
 http://localhost:8080/
 ```
 
-By default it calls `http://localhost:10001`. To point it at Render or another API host, add the `api` query parameter:
+Enter a YouTube Data API key in the frontend. To resolve a selected video into a direct media link, also enter your resolver backend URL, for example `http://localhost:10001`, plus the resolver API key if your backend uses one.
+
+For local `.env` config, the frontend dev server recognizes `YOUTUBE_API_KEY`, `YOUTUBE_DATA_API_KEY`, `YT_API_KEY`, `YT_PUBLIC_API_KEY`, or the first non-empty raw line. Hyphenated names are normalized too. It also recognizes `RESOLVER_URL` and `RESOLVER_API_KEY` for the optional resolver fields.
+
+You can prefill values with query parameters:
 
 ```text
-http://localhost:8080/?api=https://yt-dlp-media-url-api-0-1-0.onrender.com
+http://localhost:8080/?ytKey=YOUR_YOUTUBE_API_KEY&api=http%3A%2F%2Flocalhost%3A10001&apiKey=dev-secret
 ```
 
-You can host `youtube/` anywhere static files are supported. If your API has `API_KEY` set, enter that same value in the frontend's API key field.
-
-The frontend saves one queue, subscriptions, selected media type, selected resolution, and API key in this browser's `localStorage`. The `Queue` button adds to the saved queue. `Play` starts immediate playback without saving that video as history. Direct media URLs are temporary, so saved queue items are re-resolved in the background when the page loads or when you add items.
-
-When a video is selected, the frontend calls `/formats` and populates separate dropdowns for media type, such as MP4, WebM, HLS/m3u8, and audio formats, and resolution, such as 720p or 1080p. Auto mode prefers a combined audio+video stream for browser playback. Choose HLS/m3u8 explicitly if you want an HLS stream.
-
-The cast button uses the Google Cast sender SDK and official launcher when available, with AirPlay/Remote Playback fallback. Cast devices must be discoverable by Chrome/Edge on the same network and must be able to reach the media URL. If the API URL is `localhost`, the frontend tries to cast the direct media URL returned by yt-dlp; for the most reliable Chromecast behavior, host the API/frontend on reachable HTTPS URLs.
+The frontend stores these values in browser `localStorage`.
 
 ## React Native frontend
 

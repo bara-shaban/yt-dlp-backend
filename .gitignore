@@ -2,7 +2,9 @@
 .venv/
 __pycache__/
 *.pyc
+.DS_Store
 cookies*.txt
+cookies.txt.before-youtube-filter
 *.cookies
 node_modules/
 .expo/
