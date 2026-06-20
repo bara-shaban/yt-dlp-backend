@@ -1,0 +1,54 @@
+name: Deploy UI to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ui/**"
+      - ".github/workflows/deploy-ui.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build frontend config
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const config = {
+            youtubeApiKey: process.env.YOUTUBE_API_KEY || "",
+            resolverBase: process.env.RESOLVER_URL || "",
+            resolverKey: process.env.RESOLVER_API_KEY || "",
+          };
+          const body = `window.YT_FRONTEND_CONFIG = ${JSON.stringify(config, null, 2)};\n`;
+          fs.writeFileSync("ui/config.js", body);
+          NODE
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          RESOLVER_URL: ${{ secrets.RESOLVER_URL }}
+          RESOLVER_API_KEY: ${{ secrets.RESOLVER_API_KEY }}
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ui
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

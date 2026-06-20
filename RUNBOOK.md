@@ -213,6 +213,59 @@ For another device on the same network, replace `localhost` with your computer's
 http://YOUR_LAN_IP:8080/?api=http%3A%2F%2FYOUR_LAN_IP%3A10001
 ```
 
+## Host The UI On GitHub Pages
+
+The `ui/` folder is static and can be published with GitHub Pages. The backend stays separate (Docker, Render, ngrok, etc.).
+
+### One-time GitHub setup
+
+1. Open the repo on GitHub: `https://github.com/bara-shaban/yt-dlp-backend`
+2. Go to **Settings → Pages**
+3. Under **Build and deployment → Source**, choose **GitHub Actions**
+4. Go to **Settings → Secrets and variables → Actions** and add:
+
+| Secret | Example | Purpose |
+| --- | --- | --- |
+| `YOUTUBE_API_KEY` | `AIza...` | YouTube Data API key for search |
+| `RESOLVER_URL` | `https://your-backend.onrender.com` | Public backend base URL |
+| `RESOLVER_API_KEY` | `your-api-key` | Backend `API_KEY` value |
+
+5. Push to `main`. The workflow in `.github/workflows/deploy-ui.yml` publishes `ui/` automatically.
+
+Your site URL will be:
+
+```text
+https://bara-shaban.github.io/yt-dlp-backend/
+```
+
+### Without GitHub secrets
+
+You can also pass config in the URL (values are visible in the browser):
+
+```text
+https://bara-shaban.github.io/yt-dlp-backend/?ytKey=YOUR_YT_KEY&api=https%3A%2F%2Fyour-backend.example.com&apiKey=YOUR_RESOLVER_KEY
+```
+
+### YouTube API key restrictions
+
+Because the UI runs in the browser, the YouTube key is public. In Google Cloud Console, restrict the key by **HTTP referrer**:
+
+```text
+https://bara-shaban.github.io/*
+```
+
+### Backend CORS
+
+The backend must allow browser requests from GitHub Pages. Default `CORS_ORIGINS=*` already allows this. For a locked-down backend, set:
+
+```text
+CORS_ORIGINS=https://bara-shaban.github.io
+```
+
+### Manual deploy trigger
+
+In GitHub: **Actions → Deploy UI to GitHub Pages → Run workflow**
+
 ## Deploy Backend From GitHub
 
 Commit these backend files:
