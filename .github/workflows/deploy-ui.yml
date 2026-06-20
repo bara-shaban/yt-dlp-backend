@@ -1,3 +1,6 @@
+# Requires GitHub Actions billing. If your account is locked, use docs/ + branch deploy instead.
+# See RUNBOOK.md "Host The UI On GitHub Pages".
+
 name: Deploy UI to GitHub Pages
 
 on:

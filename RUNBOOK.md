@@ -217,20 +217,30 @@ http://YOUR_LAN_IP:8080/?api=http%3A%2F%2FYOUR_LAN_IP%3A10001
 
 The `ui/` folder is static and can be published with GitHub Pages. The backend stays separate (Docker, Render, ngrok, etc.).
 
-### One-time GitHub setup
+### Recommended: deploy from the `docs/` folder (no Actions, no billing)
 
-1. Open the repo on GitHub: `https://github.com/bara-shaban/yt-dlp-backend`
-2. Go to **Settings → Pages**
-3. Under **Build and deployment → Source**, choose **GitHub Actions**
-4. Go to **Settings → Secrets and variables → Actions** and add:
+This works on free GitHub accounts even when Actions is blocked for billing.
 
-| Secret | Example | Purpose |
-| --- | --- | --- |
-| `YOUTUBE_API_KEY` | `AIza...` | YouTube Data API key for search |
-| `RESOLVER_URL` | `https://your-backend.onrender.com` | Public backend base URL |
-| `RESOLVER_API_KEY` | `your-api-key` | Backend `API_KEY` value |
+1. Sync the UI into `docs/`:
 
-5. Push to `main`. The workflow in `.github/workflows/deploy-ui.yml` publishes `ui/` automatically.
+```bash
+./scripts/sync-ui-docs.sh
+```
+
+2. Optionally edit `docs/config.js` with your public backend URL and keys, or use URL params instead (see below).
+
+3. Commit and push:
+
+```bash
+git add docs/ scripts/sync-ui-docs.sh
+git commit -m "Publish UI to GitHub Pages"
+git push
+```
+
+4. Open **Settings → Pages** for the repo.
+5. Under **Build and deployment → Source**, choose **Deploy from a branch**.
+6. Set **Branch** to `main` and **Folder** to `/docs`.
+7. Save.
 
 Your site URL will be:
 
@@ -238,9 +248,21 @@ Your site URL will be:
 https://bara-shaban.github.io/yt-dlp-backend/
 ```
 
-### Without GitHub secrets
+After UI changes in `ui/`, run `./scripts/sync-ui-docs.sh` and push `docs/` again.
 
-You can also pass config in the URL (values are visible in the browser):
+### Configure the live site
+
+Edit `docs/config.js` before pushing:
+
+```js
+window.YT_FRONTEND_CONFIG = {
+  youtubeApiKey: "YOUR_YT_KEY",
+  resolverBase: "https://your-backend.example.com",
+  resolverKey: "YOUR_RESOLVER_KEY",
+};
+```
+
+Or pass config in the URL (values are visible in the browser):
 
 ```text
 https://bara-shaban.github.io/yt-dlp-backend/?ytKey=YOUR_YT_KEY&api=https%3A%2F%2Fyour-backend.example.com&apiKey=YOUR_RESOLVER_KEY
@@ -262,9 +284,9 @@ The backend must allow browser requests from GitHub Pages. Default `CORS_ORIGINS
 CORS_ORIGINS=https://bara-shaban.github.io
 ```
 
-### Manual deploy trigger
+### Optional: GitHub Actions deploy
 
-In GitHub: **Actions → Deploy UI to GitHub Pages → Run workflow**
+The workflow in `.github/workflows/deploy-ui.yml` can publish `ui/` automatically, but it requires GitHub Actions billing to be enabled. If your account is locked for billing, use the `docs/` method above instead.
 
 ## Deploy Backend From GitHub
 

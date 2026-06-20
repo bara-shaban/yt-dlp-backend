@@ -1,0 +1,1 @@
+window.YT_FRONTEND_CONFIG = window.YT_FRONTEND_CONFIG || {};
