@@ -9,3 +9,4 @@ cookies.txt.before-youtube-filter
 node_modules/
 .expo/
 dist/
+.DS_Store
