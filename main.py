@@ -4,6 +4,7 @@ import ipaddress
 import os
 import re
 import socket
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from html import unescape
 from html.parser import HTMLParser
@@ -94,6 +95,10 @@ MAX_CONCURRENT_REQUESTS = env_int("MAX_CONCURRENT_REQUESTS", 2, minimum=1)
 MAX_SEARCH_RESULTS = env_int("MAX_SEARCH_RESULTS", 15, minimum=1)
 MAX_CHANNEL_SEARCH_RESULTS = env_int("MAX_CHANNEL_SEARCH_RESULTS", 12, minimum=1)
 MAX_CHANNEL_VIDEO_RESULTS = env_int("MAX_CHANNEL_VIDEO_RESULTS", 18, minimum=1)
+MAX_PLAYLIST_RESULTS = env_int("MAX_PLAYLIST_RESULTS", 50, minimum=1)
+SHORTS_MAX_SECONDS = env_int("SHORTS_MAX_SECONDS", 180, minimum=1)
+SHORTS_LEGACY_MAX_SECONDS = env_int("SHORTS_LEGACY_MAX_SECONDS", 65, minimum=1)
+EMBED_FALLBACK_PARALLELISM = env_int("EMBED_FALLBACK_PARALLELISM", 3, minimum=1)
 ALLOW_PRIVATE_URLS = env_bool("ALLOW_PRIVATE_URLS")
 ENABLE_EMBED_FALLBACK = env_bool("ENABLE_EMBED_FALLBACK", True)
 DEFAULT_USER_AGENT = os.getenv(
@@ -104,6 +109,7 @@ DEFAULT_USER_AGENT = os.getenv(
 
 ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 YOUTUBE_VIDEO_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
+SHORTS_TAG_RE = re.compile(r"(^|\W)#shorts?\b", re.IGNORECASE)
 ABSOLUTE_MEDIA_URL_RE = re.compile(
     r"https?:\\?/\\?/[^\s\"'<>]+?\.(?:m3u8|mpd|mp4|m4v|webm|mov|mp3|m4a|aac)(?:\?[^\s\"'<>]*)?",
     re.IGNORECASE,
@@ -111,6 +117,8 @@ ABSOLUTE_MEDIA_URL_RE = re.compile(
 MEDIA_PATH_RE = re.compile(r"\.(?:m3u8|mpd|mp4|m4v|webm|mov|mp3|m4a|aac)(?:[?#]|$)", re.IGNORECASE)
 EMBED_ATTRS = ("src", "data-src", "data-url", "data-file", "data-hls", "data-mp4", "href")
 EMBED_INFO_KEY = "__yt_dlp_api_embed"
+FORMAT_SELECTOR_INFO_KEY = "__yt_dlp_api_format_selector"
+FORMAT_FALLBACK_INFO_KEY = "__yt_dlp_api_format_fallback"
 SENSITIVE_HEADERS = {"authorization", "cookie", "x-api-key"}
 
 extractor_semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
@@ -161,6 +169,13 @@ class ResolveRequest(BaseModel):
     def format_selector(self) -> str:
         return self.format or self.video_format or self.format_id or DEFAULT_FORMAT
 
+    @property
+    def has_custom_format_selector(self) -> bool:
+        return bool(self.format or self.video_format or self.format_id)
+
+    def with_default_format_selector(self) -> "ResolveRequest":
+        return self.model_copy(update={"format": DEFAULT_FORMAT, "video_format": None, "format_id": None})
+
 
 class SearchRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -174,6 +189,21 @@ class ChannelVideosRequest(BaseModel):
 
     url: str = Field(..., min_length=8, max_length=4096)
     limit: int = Field(default=12, ge=1, le=50)
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, value: str) -> str:
+        parsed = urlparse(value)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError("url must be an absolute http or https URL")
+        return value
+
+
+class PlaylistRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    url: str = Field(..., min_length=8, max_length=4096)
+    limit: int = Field(default=25, ge=1, le=100)
 
     @field_validator("url")
     @classmethod
@@ -214,6 +244,7 @@ def root() -> dict[str, Any]:
             "search": "GET /search?q=...",
             "channels_search": "GET /channels/search?q=...",
             "channels_videos": "GET /channels/videos?url=...",
+            "playlist": "GET /playlist?url=...",
             "stream": "GET /stream?url=...",
             "docs": "/docs",
         },
@@ -324,6 +355,20 @@ async def channels_videos_get(
 ) -> dict[str, Any]:
     payload = ChannelVideosRequest(url=url, limit=limit)
     return await channel_videos(payload.url, payload.limit)
+
+
+@app.post("/playlist", dependencies=[Depends(require_api_key)])
+async def playlist_post(payload: PlaylistRequest) -> dict[str, Any]:
+    return await playlist_videos(payload.url, payload.limit)
+
+
+@app.get("/playlist", dependencies=[Depends(require_api_key)])
+async def playlist_get(
+    url: str = Query(..., min_length=8, max_length=4096),
+    limit: int = Query(default=25, ge=1, le=100),
+) -> dict[str, Any]:
+    payload = PlaylistRequest(url=url, limit=limit)
+    return await playlist_videos(payload.url, payload.limit)
 
 
 @app.get("/stream", dependencies=[Depends(require_api_key)])
@@ -476,41 +521,110 @@ async def channel_videos(channel_url: str, limit: int) -> dict[str, Any]:
     }
 
 
+async def playlist_videos(playlist_url: str, limit: int) -> dict[str, Any]:
+    if not ALLOW_PRIVATE_URLS:
+        validate_public_url(playlist_url)
+
+    result_limit = min(limit, MAX_PLAYLIST_RESULTS)
+    try:
+        async with extractor_semaphore:
+            info = await asyncio.wait_for(
+                asyncio.to_thread(extract_playlist, playlist_url, result_limit),
+                timeout=REQUEST_TIMEOUT_SECONDS,
+            )
+    except asyncio.TimeoutError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail=f"yt-dlp playlist timed out after {REQUEST_TIMEOUT_SECONDS} seconds",
+        ) from exc
+    except (DownloadError, ExtractorError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=clean_error(str(exc)),
+        ) from exc
+
+    entries = [entry for entry in info.get("entries") or [] if isinstance(entry, dict)]
+    return {
+        "playlist": playlist_result_from_info(info, playlist_url),
+        "limit": result_limit,
+        "results": [video for video in (search_result_from_entry(entry) for entry in entries) if video],
+    }
+
+
 async def extract_info_async(payload: ResolveRequest) -> dict[str, Any]:
     primary_error: asyncio.TimeoutError | DownloadError | ExtractorError | ValueError | None = None
+    active_payload = payload
+    format_fallback_detail: str | None = None
     try:
-        return await extract_info_once(payload)
+        info = await extract_info_once(payload)
+        return annotate_format_result(info, payload.format_selector)
     except (asyncio.TimeoutError, DownloadError, ExtractorError, ValueError) as exc:
         primary_error = exc
+
+        if payload.has_custom_format_selector:
+            active_payload = payload.with_default_format_selector()
+            format_fallback_detail = f"selected format failed; retried Auto: {clean_extraction_error(exc)}"
+            try:
+                info = await extract_info_once(active_payload)
+                return annotate_format_result(
+                    info,
+                    active_payload.format_selector,
+                    fallback={
+                        "requested": payload.format_selector,
+                        "used": active_payload.format_selector,
+                        "reason": clean_extraction_error(exc),
+                    },
+                )
+            except (asyncio.TimeoutError, DownloadError, ExtractorError, ValueError) as fallback_exc:
+                primary_error = fallback_exc
+
         if not ENABLE_EMBED_FALLBACK:
-            raise extraction_http_exception(primary_error) from primary_error
+            raise extraction_http_exception(primary_error, fallback_detail=format_fallback_detail) from primary_error
 
     assert primary_error is not None
 
     try:
-        candidates = await discover_embed_candidates(payload)
+        candidates = await discover_embed_candidates(active_payload)
     except ValueError as discovery_error:
-        raise extraction_http_exception(primary_error, fallback_detail=str(discovery_error)) from primary_error
+        detail = join_details(format_fallback_detail, str(discovery_error))
+        raise extraction_http_exception(primary_error, fallback_detail=detail) from primary_error
     except httpx.HTTPError as discovery_error:
-        detail = f"embed fallback page fetch failed: {discovery_error}"
+        detail = join_details(format_fallback_detail, f"embed fallback page fetch failed: {discovery_error}")
         raise extraction_http_exception(primary_error, fallback_detail=detail) from primary_error
 
     fallback_errors = []
     for candidate in candidates:
         try:
-            info = await extract_info_once(payload_for_embed_candidate(payload, candidate))
+            info = await extract_info_once(payload_for_embed_candidate(active_payload, candidate))
         except (asyncio.TimeoutError, DownloadError, ExtractorError, ValueError) as candidate_error:
             fallback_errors.append(f"{candidate['kind']} {candidate['url']}: {clean_extraction_error(candidate_error)}")
             continue
 
         info[EMBED_INFO_KEY] = candidate
-        return info
+        return annotate_format_result(info, active_payload.format_selector)
 
     fallback_detail = "embed fallback found no candidate URLs"
     if fallback_errors:
         visible_errors = "; ".join(fallback_errors[:3])
         fallback_detail = f"embed fallback tried {len(fallback_errors)} candidate(s): {visible_errors}"
+    fallback_detail = join_details(format_fallback_detail, fallback_detail)
     raise extraction_http_exception(primary_error, fallback_detail=fallback_detail) from primary_error
+
+
+def annotate_format_result(
+    info: dict[str, Any],
+    format_selector: str,
+    fallback: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    info[FORMAT_SELECTOR_INFO_KEY] = format_selector
+    if fallback:
+        info[FORMAT_FALLBACK_INFO_KEY] = fallback
+    return info
+
+
+def join_details(*details: str | None) -> str | None:
+    visible = [detail for detail in details if detail]
+    return "; ".join(visible) if visible else None
 
 
 async def extract_info_once(payload: ResolveRequest) -> dict[str, Any]:
@@ -762,6 +876,24 @@ def extract_channel_videos(channel_url: str, limit: int) -> dict[str, Any]:
     return info
 
 
+def extract_playlist(playlist_url: str, limit: int) -> dict[str, Any]:
+    ydl_opts = base_ytdlp_opts()
+    ydl_opts.update(
+        {
+            "extract_flat": "in_playlist",
+            "noplaylist": False,
+            "playlistend": limit,
+        }
+    )
+
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(playlist_url, download=False)
+
+    if not isinstance(info, dict):
+        raise ValueError("yt-dlp did not return playlist videos")
+    return info
+
+
 def build_response(
     source_url: str,
     info: dict[str, Any],
@@ -770,6 +902,10 @@ def build_response(
 ) -> dict[str, Any]:
     result = first_media_result(info)
     embed_source = info.get(EMBED_INFO_KEY) if isinstance(info.get(EMBED_INFO_KEY), dict) else None
+    format_selector = info.get(FORMAT_SELECTOR_INFO_KEY) or requested_format_selector
+    format_fallback = info.get(FORMAT_FALLBACK_INFO_KEY)
+    if not isinstance(format_fallback, dict):
+        format_fallback = None
     direct_url = result.get("url")
     requested_streams = [
         stream
@@ -785,7 +921,8 @@ def build_response(
             "source_url": source_url,
             "resolved_from_url": embed_source.get("url") if embed_source else None,
             "resolved_from_kind": embed_source.get("kind") if embed_source else None,
-            "requested_format_selector": requested_format_selector,
+            "requested_format_selector": format_selector,
+            "format_fallback": format_fallback,
             "id": result.get("id"),
             "title": result.get("title"),
             "extractor": result.get("extractor_key") or result.get("extractor"),
@@ -833,6 +970,7 @@ def search_result_from_entry(entry: dict[str, Any]) -> dict[str, Any] | None:
             "view_count": entry.get("view_count"),
             "upload_date": entry.get("upload_date"),
             "live_status": entry.get("live_status"),
+            "is_short": is_short_video_entry(entry, webpage_url),
         }
     )
 
@@ -860,6 +998,22 @@ def channel_result_from_entry(entry: dict[str, Any]) -> dict[str, Any] | None:
             "url": channel_url,
             "videos_url": channel_videos_url(channel_url),
             "thumbnail": best_thumbnail(entry),
+        }
+    )
+
+
+def playlist_result_from_info(info: dict[str, Any], playlist_url: str) -> dict[str, Any]:
+    entries = [entry for entry in info.get("entries") or [] if isinstance(entry, dict)]
+    thumbnail = best_thumbnail(info) or (best_thumbnail(entries[0]) if entries else None)
+    return compact(
+        {
+            "id": info.get("id") or first_value(parse_qs(urlparse(playlist_url).query).get("list")),
+            "title": info.get("title") or "Playlist",
+            "url": info.get("webpage_url") or playlist_url,
+            "thumbnail": thumbnail,
+            "channel": info.get("channel") or info.get("uploader"),
+            "channel_url": info.get("channel_url") or info.get("uploader_url"),
+            "playlist_count": info.get("playlist_count") or len(entries),
         }
     )
 
@@ -929,6 +1083,44 @@ def channel_videos_url(channel_url: str) -> str:
 def video_id_from_value(value: Any) -> str | None:
     candidate = str(value or "")
     return candidate if YOUTUBE_VIDEO_ID_RE.fullmatch(candidate) else None
+
+
+def is_short_video_entry(entry: dict[str, Any], webpage_url: str | None = None) -> bool:
+    if entry.get("is_short") is True:
+        return True
+
+    url_text = " ".join(
+        str(value or "")
+        for value in (
+            webpage_url,
+            entry.get("url"),
+            entry.get("webpage_url"),
+            entry.get("original_url"),
+        )
+    )
+    if "/shorts/" in url_text.lower():
+        return True
+
+    text = f"{entry.get('title') or ''} {entry.get('description') or ''}"
+    if SHORTS_TAG_RE.search(text):
+        return True
+
+    duration = number_from_value(entry.get("duration"))
+    width = number_from_value(entry.get("width"))
+    height = number_from_value(entry.get("height"))
+    if duration and duration <= SHORTS_MAX_SECONDS and width and height and height >= width:
+        return True
+
+    return bool(duration and duration <= SHORTS_LEGACY_MAX_SECONDS)
+
+
+def number_from_value(value: Any) -> float | None:
+    if value in (None, ""):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def best_thumbnail(entry: dict[str, Any]) -> str | None:

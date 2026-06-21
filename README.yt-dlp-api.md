@@ -11,6 +11,14 @@ Use it only for media you own, control, or have permission to access. Returned U
 - `GET /resolve?url=...`
 - `POST /formats`
 - `GET /formats?url=...`
+- `POST /search`
+- `GET /search?q=...`
+- `POST /channels/search`
+- `GET /channels/search?q=...`
+- `POST /channels/videos`
+- `GET /channels/videos?url=...`
+- `POST /playlist`
+- `GET /playlist?url=...`
 - `GET /stream?url=...`
 - `GET /docs`
 
@@ -194,7 +202,7 @@ Then open:
 http://localhost:8080/
 ```
 
-Enter a YouTube Data API key in the frontend. To resolve a selected video into a direct media link, also enter your resolver backend URL, for example `http://localhost:10001`, plus the resolver API key if your backend uses one.
+Enter a YouTube Data API key in the frontend. To resolve a selected video into a direct media link, also enter your resolver backend URL, for example `http://localhost:10001`, plus the resolver API key if your backend uses one. Pasting a YouTube playlist URL into search loads the playlist from the resolver backend and shows it in the watch-page playlist rail.
 
 For local `.env` config, the frontend dev server recognizes `YOUTUBE_API_KEY`, `YOUTUBE_DATA_API_KEY`, `YT_API_KEY`, `YT_PUBLIC_API_KEY`, or the first non-empty raw line. Hyphenated names are normalized too. It also recognizes `RESOLVER_URL` and `RESOLVER_API_KEY` for the optional resolver fields.
 
@@ -206,17 +214,17 @@ http://localhost:8080/?ytKey=YOUR_YOUTUBE_API_KEY&api=http%3A%2F%2Flocalhost%3A1
 
 The frontend stores these values in browser `localStorage`.
 
-## React Native frontend
+## React Native mobile app
 
-The `youtube_native/` folder is an Expo React Native version for phones. It uses the same API endpoints as the browser frontend and stores its queue/subscriptions on the device.
+The `mobile/` folder is an Expo React Native app for phones. It uses the same resolver endpoints as the browser frontend, separates regular videos from Shorts, stores queue/history/playlists on the device, supports swipe-up fullscreen on the video, and includes a Chromecast handoff path through `react-native-google-cast`.
 
 ```bash
-cd youtube_native
+cd mobile
 npm install
 npm start
 ```
 
-Scan the QR code with Expo Go. A physical phone cannot use your computer's `localhost`, so set the in-app API URL to your computer's LAN address, for example:
+Chromecast requires a development or release build because the Cast module is native and is not available in Expo Go. A physical phone cannot use your computer's `localhost`, so set the in-app resolver URL to your computer's LAN address, for example:
 
 ```text
 http://192.168.1.25:10001
@@ -265,4 +273,5 @@ Useful environment variables:
 - `MAX_SEARCH_RESULTS`: default `15`
 - `MAX_CHANNEL_SEARCH_RESULTS`: default `12`
 - `MAX_CHANNEL_VIDEO_RESULTS`: default `18`
+- `MAX_PLAYLIST_RESULTS`: default `50`
 - `ALLOW_PRIVATE_URLS`: default disabled; set `true` only for trusted private deployments
