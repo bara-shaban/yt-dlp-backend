@@ -50,6 +50,14 @@ def env_first(*names: str) -> str | None:
     return None
 
 
+def env_first_pair(*names: str) -> tuple[str, str] | tuple[None, None]:
+    for name in names:
+        value = os.getenv(name)
+        if value:
+            return name, value
+    return None, None
+
+
 def load_env_file() -> None:
     env_path = Path(os.getenv("ENV_FILE", ".env"))
     if not env_path.exists():
@@ -71,6 +79,18 @@ def load_env_file() -> None:
         os.environ[key] = value
 
 
+def looks_like_netscape_cookies(value: str) -> bool:
+    lines = [line.strip() for line in value.splitlines() if line.strip()]
+    if not lines:
+        return False
+    if any(line.startswith("# Netscape HTTP Cookie File") for line in lines):
+        return True
+    return any(
+        not line.startswith("#") and len(line.split("\t")) >= 7
+        for line in lines
+    )
+
+
 def init_cookie_file() -> str | None:
     cookie_file = env_first("YTDLP_COOKIES_FILE", "YOUTUBE_COOKIES_FILE")
     if cookie_file:
@@ -84,15 +104,21 @@ def init_cookie_file() -> str | None:
         return str(source_path)
 
     cookie_text = env_first("YTDLP_COOKIES_TEXT", "YOUTUBE_COOKIES_TEXT")
-    cookie_base64 = env_first("YTDLP_COOKIES_BASE64", "YOUTUBE_COOKIES_BASE64")
+    cookie_base64_name, cookie_base64 = env_first_pair("YTDLP_COOKIES_BASE64", "YOUTUBE_COOKIES_BASE64")
     if not cookie_text and not cookie_base64:
         return None
 
     if cookie_base64:
         try:
-            cookie_text = base64.b64decode(cookie_base64).decode("utf-8")
+            cookie_text = base64.b64decode(cookie_base64.strip(), validate=True).decode("utf-8")
         except Exception as exc:
-            raise RuntimeError("YTDLP_COOKIES_BASE64 is not valid base64-encoded UTF-8") from exc
+            if looks_like_netscape_cookies(cookie_base64):
+                cookie_text = cookie_base64
+            else:
+                raise RuntimeError(
+                    f"{cookie_base64_name} must be base64-encoded UTF-8 Netscape cookies text. "
+                    "Generate it with: base64 -w0 cookies.txt, or put raw cookies in YTDLP_COOKIES_TEXT."
+                ) from exc
 
     cookie_path = Path(os.getenv("YTDLP_COOKIES_PATH", "/tmp/yt-dlp-cookies.txt"))
     cookie_path.write_text(cookie_text or "", encoding="utf-8")

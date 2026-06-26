@@ -124,11 +124,21 @@ On macOS:
 base64 -i cookies.txt | pbcopy
 ```
 
+On Linux/Codespaces, or from this repo:
+
+```bash
+./scripts/encode-cookies-base64.sh cookies.txt
+```
+
 Then paste the copied value into Render:
 
 ```text
 YTDLP_COOKIES_BASE64=...
 ```
+
+`YTDLP_COOKIES_BASE64` must contain the one-line base64 output. If you want to paste raw Netscape cookies text instead, use `YTDLP_COOKIES_TEXT`.
+
+The backend also detects raw Netscape cookies accidentally placed in `YTDLP_COOKIES_BASE64` and treats them as cookie text. Base64 is still preferred for hosted secrets because it avoids multiline copy/paste problems.
 
 Redeploy the service after setting it. `/health` will show `"cookies":"configured"` when the app loaded cookies.
 

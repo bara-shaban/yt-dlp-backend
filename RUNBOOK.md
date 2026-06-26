@@ -51,13 +51,20 @@ docker run --rm --name yt-dlp-backend -p 10001:10000 \
 With a Codespaces or hosted secret:
 
 ```bash
-docker run --rm --name yt-dlp-backend -p 10001:10000 \
-  -e API_KEY=dev-secret \
-  -e YTDLP_COOKIES_BASE64 \
-  yt-dlp-media-url-api
+./scripts/run-backend-docker.sh
 ```
 
-If you run the backend directly in the Codespaces shell, it can read `YTDLP_COOKIES_BASE64` from the process environment. If you run it inside Docker, pass the env var into the container as shown above or use `--env-file .env`.
+The helper refuses to start if no cookie env var is visible in the shell. If you run the backend directly in the Codespaces shell, it can read `YTDLP_COOKIES_BASE64` from the process environment. If you run it inside Docker, pass the env var into the container as shown above or use `--env-file .env`.
+
+To generate a valid base64 cookie secret from a Netscape `cookies.txt` export:
+
+```bash
+./scripts/encode-cookies-base64.sh cookies.txt
+```
+
+Use the one-line output as `YTDLP_COOKIES_BASE64`. Do not paste the raw cookies file into `YTDLP_COOKIES_BASE64`; raw text belongs in `YTDLP_COOKIES_TEXT`.
+
+For convenience, the backend also detects raw Netscape cookies accidentally placed in `YTDLP_COOKIES_BASE64` and treats them as cookie text. Base64 is still preferred for hosted secrets because it survives copy/paste and multiline secret handling better.
 
 The container listens on port `10000`. The host maps it to `10001`, so your local backend URL is:
 
@@ -348,11 +355,35 @@ yt_dlp_api
 
 ## Quick Troubleshooting
 
-Port already allocated:
+Port or container name already allocated:
 
 ```bash
 docker ps
-docker stop yt-dlp-backend
+docker rm -f yt-dlp-backend
+```
+
+Rebuild after backend code changes:
+
+```bash
+docker build -t yt-dlp-media-url-api .
+```
+
+Then start it again with the Codespaces cookie secret:
+
+```bash
+./scripts/run-backend-docker.sh
+```
+
+If `YTDLP_COOKIES_BASE64` was added after the codespace started, restart/rebuild the codespace or export it manually before running Docker. Check whether the current shell can see it:
+
+```bash
+echo "${YTDLP_COOKIES_BASE64:+set}"
+```
+
+Check whether the running container received it:
+
+```bash
+docker exec yt-dlp-backend sh -lc 'test -n "$YTDLP_COOKIES_BASE64" && echo cookie-env-present || echo cookie-env-missing'
 ```
 
 No cookies:
