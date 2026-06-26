@@ -34,10 +34,29 @@ jobs:
         run: |
           node <<'NODE'
           const fs = require("node:fs");
+          const defaultResolverBase = "https://organic-space-goggles-4jwg4v79r5rpc5qg5-10000.app.github.dev";
+          function normalizeResolverBase(value) {
+            const raw = String(value || "").trim();
+            if (!raw) return "";
+            try {
+              const url = new URL(raw);
+              url.hash = "";
+              url.search = "";
+              url.pathname = url.pathname
+                .replace(/\/+(channels\/(?:search|videos)|resolve|formats|playlist|stream|search|docs|health)\/?$/i, "")
+                .replace(/\/+$/, "");
+              return url.toString().replace(/\/+$/, "");
+            } catch {
+              return raw
+                .replace(/\/+(channels\/(?:search|videos)|resolve|formats|playlist|stream|search|docs|health)\/?$/i, "")
+                .replace(/\/+$/, "");
+            }
+          }
           const config = {
             youtubeApiKey: process.env.YOUTUBE_API_KEY || "",
-            resolverBase: process.env.RESOLVER_URL || "",
+            resolverBase: normalizeResolverBase(process.env.RESOLVER_URL || defaultResolverBase),
             resolverKey: process.env.RESOLVER_API_KEY || "",
+            googleClientId: process.env.GOOGLE_CLIENT_ID || "",
           };
           const body = `window.YT_FRONTEND_CONFIG = ${JSON.stringify(config, null, 2)};\n`;
           fs.writeFileSync("ui/config.js", body);
@@ -46,6 +65,7 @@ jobs:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
           RESOLVER_URL: ${{ secrets.RESOLVER_URL }}
           RESOLVER_API_KEY: ${{ secrets.RESOLVER_API_KEY }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

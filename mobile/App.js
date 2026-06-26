@@ -22,7 +22,10 @@ import {
   View,
 } from "react-native";
 
-const DEFAULT_API_BASE = Platform.OS === "android" ? "http://10.0.2.2:10001" : "http://127.0.0.1:10001";
+const ENV = typeof process !== "undefined" ? process.env || {} : {};
+const REMOTE_API_BASE = "https://organic-space-goggles-4jwg4v79r5rpc5qg5-10000.app.github.dev/resolve";
+const DEFAULT_API_BASE = normalizeApiBase(ENV.EXPO_PUBLIC_RESOLVER_URL || REMOTE_API_BASE);
+const DEFAULT_API_KEY = ENV.EXPO_PUBLIC_RESOLVER_API_KEY || "";
 const DEFAULT_FORMAT = "best[ext=mp4][height<=720][vcodec!=none][acodec!=none]/best[height<=720][vcodec!=none][acodec!=none]/best";
 const SHORTS_MAX_SECONDS = 180;
 const SHORTS_LEGACY_MAX_SECONDS = 65;
@@ -99,7 +102,7 @@ export default function App() {
   });
 
   const [apiBase, setApiBase] = useState(DEFAULT_API_BASE);
-  const [apiKey, setApiKey] = useState("");
+  const [apiKey, setApiKey] = useState(DEFAULT_API_KEY);
   const [query, setQuery] = useState("");
   const [activeTopic, setActiveTopic] = useState(TOPIC_CHIPS[0]);
   const [screen, setScreen] = useState("home");
@@ -195,14 +198,14 @@ export default function App() {
   }, [queue, apiBase, apiKey, mediaType, resolution]);
 
   const request = async (path, options = {}) => {
-    const cleanBase = apiBase.trim().replace(/\/+$/, "");
+    const cleanBase = normalizeApiBase(apiBase);
     if (!cleanBase) throw new Error("Set your resolver URL first.");
     const response = await fetch(`${cleanBase}${path}`, {
       ...options,
       headers: {
         ...(options.json ? { "content-type": "application/json" } : {}),
         ...(apiKey ? { "x-api-key": apiKey } : {}),
-        ...(isNgrokFreeUrl(apiBase) ? { "ngrok-skip-browser-warning": "true" } : {}),
+        ...(isNgrokFreeUrl(cleanBase) ? { "ngrok-skip-browser-warning": "true" } : {}),
         ...(options.headers || {}),
       },
       body: options.json ? JSON.stringify(options.json) : options.body,
@@ -215,8 +218,8 @@ export default function App() {
   const loadPersistedState = async () => {
     const pairs = await AsyncStorage.multiGet(Object.values(STORAGE_KEYS));
     const stored = Object.fromEntries(pairs);
-    setApiBase(stored[STORAGE_KEYS.apiBase] || DEFAULT_API_BASE);
-    setApiKey(stored[STORAGE_KEYS.apiKey] || "");
+    setApiBase(normalizeApiBase(stored[STORAGE_KEYS.apiBase] || DEFAULT_API_BASE));
+    setApiKey(stored[STORAGE_KEYS.apiKey] || DEFAULT_API_KEY);
     setMediaType(stored[STORAGE_KEYS.mediaType] || "auto");
     setResolution(stored[STORAGE_KEYS.resolution] || "720");
     setQueue(parseStoredArray(stored[STORAGE_KEYS.queue]).map(queueItemFromVideo).filter((item) => item.url));
@@ -499,8 +502,9 @@ export default function App() {
   };
 
   const updateApiBase = (value) => {
-    setApiBase(value);
-    AsyncStorage.setItem(STORAGE_KEYS.apiBase, value);
+    const normalized = normalizeApiBase(value);
+    setApiBase(normalized);
+    AsyncStorage.setItem(STORAGE_KEYS.apiBase, normalized);
     resolvedCache.current.clear();
   };
 
@@ -1008,7 +1012,7 @@ function YouPanel({ apiBase, apiKey, updateApiBase, updateApiKey, mediaOptions, 
     <View>
       <View style={styles.settingsPanel}>
         <Text style={styles.label}>Resolver URL</Text>
-        <TextInput value={apiBase} onChangeText={updateApiBase} autoCapitalize="none" autoCorrect={false} placeholder="http://YOUR-LAN-IP:10001" placeholderTextColor="#777" style={styles.input} />
+        <TextInput value={apiBase} onChangeText={updateApiBase} autoCapitalize="none" autoCorrect={false} placeholder={DEFAULT_API_BASE} placeholderTextColor="#777" style={styles.input} />
         <Text style={styles.label}>Resolver key</Text>
         <TextInput value={apiKey} onChangeText={updateApiKey} autoCapitalize="none" autoCorrect={false} secureTextEntry placeholder="Optional" placeholderTextColor="#777" style={styles.input} />
       </View>
@@ -1386,12 +1390,30 @@ function selectorFromControls(mediaType, resolution) {
 
 function playbackUrlForPayload(apiBase, apiKey, sourceUrl, format, payload) {
   if (isNgrokFreeUrl(apiBase) && payload?.direct_url) return payload.direct_url;
-  const cleanBase = apiBase.replace(/\/+$/, "");
+  const cleanBase = normalizeApiBase(apiBase);
   const params = new URLSearchParams({ url: sourceUrl });
   const effectiveFormat = payload?.format_fallback ? "" : format;
   if (effectiveFormat) params.set("video_format", effectiveFormat);
   if (apiKey) params.set("api_key", apiKey);
   return `${cleanBase}/stream?${params.toString()}`;
+}
+
+function normalizeApiBase(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    url.hash = "";
+    url.search = "";
+    url.pathname = url.pathname
+      .replace(/\/+(channels\/(?:search|videos)|resolve|formats|playlist|stream|search|docs|health)\/?$/i, "")
+      .replace(/\/+$/, "");
+    return url.toString().replace(/\/+$/, "");
+  } catch {
+    return raw
+      .replace(/\/+(channels\/(?:search|videos)|resolve|formats|playlist|stream|search|docs|health)\/?$/i, "")
+      .replace(/\/+$/, "");
+  }
 }
 
 function isHlsPayload(payload, streamUrl = "") {

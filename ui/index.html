@@ -203,10 +203,13 @@
         min-height: 40px;
         border: 1px solid var(--line);
         border-radius: var(--radius-control);
+        background: transparent;
         color: var(--blue);
         padding: 0 14px;
+        font: inherit;
         font-weight: 700;
         white-space: nowrap;
+        cursor: pointer;
       }
 
       .sign-in:hover {
@@ -644,6 +647,40 @@
         margin-bottom: 6px;
         color: var(--text);
         font-size: 16px;
+      }
+
+      .empty-actions,
+      .account-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .account-library {
+        display: grid;
+        gap: 16px;
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius-card);
+        background: var(--panel);
+      }
+
+      .account-library-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+      }
+
+      .account-library h2,
+      .account-library h3 {
+        margin: 0;
+      }
+
+      .account-library p {
+        margin: 4px 0 0;
+        color: var(--muted);
       }
 
       .skeleton-grid {
@@ -2741,7 +2778,7 @@
 
       <div class="top-actions">
         <button class="icon-button" type="button" aria-label="More">⋮</button>
-        <a class="sign-in" href="#settings"><span>◎</span><span>Sign in</span></a>
+        <button id="topSignIn" class="sign-in" type="button" data-google-signin><span>◎</span><span data-signin-label>Sign in</span></button>
       </div>
     </header>
 
@@ -2756,7 +2793,7 @@
 
       <section class="side-section">
         <p class="signin-copy">Sign in to like videos, comment and subscribe.</p>
-        <a class="sign-in" href="#settings"><span>◎</span><span>Sign in</span></a>
+        <button id="sideSignIn" class="sign-in" type="button" data-google-signin><span>◎</span><span data-signin-label>Sign in</span></button>
       </section>
 
       <section class="side-section">
@@ -2788,6 +2825,10 @@
           <div>
             <label for="resolverKey">Resolver key</label>
             <input id="resolverKey" type="password" autocomplete="off">
+          </div>
+          <div>
+            <label for="googleClientId">Google OAuth client ID</label>
+            <input id="googleClientId" type="password" autocomplete="off">
           </div>
         </div>
       </section>
@@ -2952,14 +2993,18 @@
     </aside>
 
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js" defer></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="config.js"></script>
     <script>
       const params = new URLSearchParams(window.location.search);
       const runtimeConfig = window.YT_FRONTEND_CONFIG || {};
+      const DEFAULT_RESOLVER_BASE = "https://organic-space-goggles-4jwg4v79r5rpc5qg5-10000.app.github.dev";
+      const GOOGLE_YOUTUBE_SCOPE = "https://www.googleapis.com/auth/youtube.readonly";
       const storageNames = {
         youtubeKey: "yt-public-ui-youtube-key",
         resolverBase: "yt-public-ui-resolver-base",
         resolverKey: "yt-public-ui-resolver-key",
+        googleClientId: "yt-public-ui-google-client-id",
         watchHistory: "yt-public-ui-watch-history",
         subscriptions: "yt-public-ui-subscriptions",
         playlist: "yt-public-ui-playlist",
@@ -2999,6 +3044,8 @@
       const youtubeKeyInput = document.querySelector("#youtubeKey");
       const resolverBaseInput = document.querySelector("#resolverBase");
       const resolverKeyInput = document.querySelector("#resolverKey");
+      const googleClientIdInput = document.querySelector("#googleClientId");
+      const signInButtons = [...document.querySelectorAll("[data-google-signin]")];
       const form = document.querySelector("#searchForm");
       const queryInput = document.querySelector("#query");
       const searchButton = document.querySelector("#searchButton");
@@ -3102,6 +3149,14 @@
       let controlsTimer = 0;
       let layoutTimer = 0;
       let userEnabledPiP = false;
+      let googleAccessToken = "";
+      let googleTokenClient = null;
+      let googleTokenClientId = "";
+      let pendingGoogleTokenResolve = null;
+      let pendingGoogleTokenReject = null;
+      let googleAccount = null;
+      let googlePlaylists = [];
+      let googleLikedVideos = [];
 
       hydrateInputs();
       queryInput.setAttribute("role", "combobox");
@@ -3113,9 +3168,14 @@
       initRemotePlayback();
       initPictureInPicture();
       renderPlaylistPanel();
+      renderAuthState();
 
-      for (const input of [youtubeKeyInput, resolverBaseInput, resolverKeyInput]) {
+      for (const input of [youtubeKeyInput, resolverBaseInput, resolverKeyInput, googleClientIdInput]) {
         input.addEventListener("input", persistInputs);
+      }
+
+      for (const button of signInButtons) {
+        button.addEventListener("click", signInGoogle);
       }
 
       youtubeKeyInput.addEventListener("change", () => {
@@ -3778,6 +3838,249 @@
         return (payload.items || []).map(playlistFromYoutubeItem).filter((playlist) => playlist.url);
       }
 
+      async function signInGoogle() {
+        const clientId = googleClientId();
+        if (!clientId) {
+          document.querySelector("#settings")?.scrollIntoView({ block: "center" });
+          setStatus("Add GOOGLE_CLIENT_ID as a Pages secret or paste the Google OAuth client ID in Frontend keys.", true);
+          return;
+        }
+
+        try {
+          setStatus("Opening Google sign-in...");
+          await waitForGoogleIdentity();
+          const token = await requestGoogleAccessToken(clientId);
+          googleAccessToken = token;
+          await loadGoogleAccountData();
+        } catch (error) {
+          setStatus(error.message || "Google sign-in failed.", true);
+        }
+      }
+
+      function googleClientId() {
+        return googleClientIdInput.value.trim();
+      }
+
+      function waitForGoogleIdentity() {
+        if (window.google?.accounts?.oauth2) return Promise.resolve(window.google);
+
+        return new Promise((resolve, reject) => {
+          const startedAt = Date.now();
+          const timer = window.setInterval(() => {
+            if (window.google?.accounts?.oauth2) {
+              window.clearInterval(timer);
+              resolve(window.google);
+              return;
+            }
+
+            if (Date.now() - startedAt > 6000) {
+              window.clearInterval(timer);
+              reject(new Error("Google sign-in did not load. Check the network or ad-blocking settings."));
+            }
+          }, 100);
+        });
+      }
+
+      function requestGoogleAccessToken(clientId) {
+        const client = initGoogleTokenClient(clientId);
+        return new Promise((resolve, reject) => {
+          pendingGoogleTokenResolve = resolve;
+          pendingGoogleTokenReject = reject;
+
+          try {
+            client.requestAccessToken({ prompt: googleAccessToken ? "" : "consent" });
+          } catch (error) {
+            clearPendingGoogleToken();
+            reject(error);
+          }
+        });
+      }
+
+      function initGoogleTokenClient(clientId) {
+        if (googleTokenClient && googleTokenClientId === clientId) return googleTokenClient;
+        googleTokenClientId = clientId;
+        googleTokenClient = window.google.accounts.oauth2.initTokenClient({
+          client_id: clientId,
+          scope: GOOGLE_YOUTUBE_SCOPE,
+          callback: handleGoogleTokenResponse,
+          error_callback: handleGoogleTokenError,
+        });
+        return googleTokenClient;
+      }
+
+      function handleGoogleTokenResponse(response = {}) {
+        const resolve = pendingGoogleTokenResolve;
+        const reject = pendingGoogleTokenReject;
+        clearPendingGoogleToken();
+
+        if (response.error) {
+          reject?.(new Error(response.error_description || response.error));
+          return;
+        }
+
+        if (!response.access_token) {
+          reject?.(new Error("Google did not return an access token."));
+          return;
+        }
+
+        resolve?.(response.access_token);
+      }
+
+      function handleGoogleTokenError(error = {}) {
+        const reject = pendingGoogleTokenReject;
+        clearPendingGoogleToken();
+        reject?.(new Error(error.message || error.type || "Google sign-in was cancelled."));
+      }
+
+      function clearPendingGoogleToken() {
+        pendingGoogleTokenResolve = null;
+        pendingGoogleTokenReject = null;
+      }
+
+      async function loadGoogleAccountData() {
+        setStatus("Loading your YouTube subscriptions and playlists...");
+        const accountRequest = youtubeAuthorizedList("channels", {
+          part: "snippet,contentDetails,statistics",
+          mine: "true",
+          maxResults: "1",
+        }, 1);
+        const subscriptionsRequest = youtubeAuthorizedList("subscriptions", {
+          part: "snippet,contentDetails",
+          mine: "true",
+          maxResults: "50",
+        }, 4);
+        const playlistsRequest = youtubeAuthorizedList("playlists", {
+          part: "snippet,contentDetails",
+          mine: "true",
+          maxResults: "50",
+        }, 4);
+        const likedRequest = youtubeAuthorizedList("videos", {
+          part: "snippet,contentDetails,statistics",
+          myRating: "like",
+          maxResults: "25",
+        }, 1);
+
+        const [accountResult, subscriptionsResult, playlistsResult, likedResult] = await Promise.allSettled([
+          accountRequest,
+          subscriptionsRequest,
+          playlistsRequest,
+          likedRequest,
+        ]);
+
+        const successCount = [accountResult, subscriptionsResult, playlistsResult].filter((result) => result.status === "fulfilled").length;
+        if (!successCount) {
+          const firstError = [accountResult, subscriptionsResult, playlistsResult].find((result) => result.status === "rejected")?.reason;
+          throw firstError || new Error("YouTube account data was not available.");
+        }
+
+        const accountItem = accountResult.status === "fulfilled" ? accountResult.value.items?.[0] : null;
+        if (accountItem) googleAccount = channelFromMineItem(accountItem);
+
+        const importedSubscriptions = subscriptionsResult.status === "fulfilled"
+          ? subscriptionsResult.value.items.map(subscriptionFromYoutubeItem).filter((item) => item.channelId || item.url)
+          : [];
+        if (importedSubscriptions.length) {
+          subscriptions = mergeSubscriptions(importedSubscriptions, subscriptions);
+          saveStoredList(storageNames.subscriptions, subscriptions);
+        }
+
+        googlePlaylists = playlistsResult.status === "fulfilled"
+          ? playlistsResult.value.items.map(playlistFromYoutubeItem).filter((playlist) => playlist.url)
+          : [];
+        googleLikedVideos = likedResult.status === "fulfilled"
+          ? likedResult.value.items.map(videoFromYoutubeVideoItem).filter((video) => video.url)
+          : [];
+
+        renderAuthState();
+        if (currentFeedMode === "subscriptions") await loadSubscriptionsFeed(true);
+        const parts = [
+          `${importedSubscriptions.length} subscriptions`,
+          `${googlePlaylists.length} playlists`,
+          googleLikedVideos.length ? `${googleLikedVideos.length} liked videos` : "",
+        ].filter(Boolean);
+        setStatus(`Loaded ${parts.join(", ")} from your YouTube account.`);
+      }
+
+      async function youtubeAuthorizedList(resource, searchParamsInput, maxPages = 1) {
+        if (!googleAccessToken) throw new Error("Sign in with Google first.");
+        const items = [];
+        let pageToken = "";
+        let page = 0;
+        let lastPayload = {};
+
+        do {
+          const url = new URL(`https://www.googleapis.com/youtube/v3/${resource}`);
+          const searchParams = new URLSearchParams(searchParamsInput);
+          if (pageToken) searchParams.set("pageToken", pageToken);
+          url.search = searchParams.toString();
+          lastPayload = await fetchJson(url, {
+            headers: {
+              Authorization: `Bearer ${googleAccessToken}`,
+            },
+          });
+          items.push(...(lastPayload.items || []));
+          pageToken = lastPayload.nextPageToken || "";
+          page += 1;
+        } while (pageToken && page < maxPages);
+
+        return { ...lastPayload, items };
+      }
+
+      function channelFromMineItem(item) {
+        const snippet = item.snippet || {};
+        return {
+          channelId: item.id || "",
+          title: decodeEntities(snippet.title || "YouTube"),
+          thumbnail: bestThumbnail(snippet.thumbnails),
+          url: channelUrlFromId(item.id || ""),
+          subscriberCount: Number(item.statistics?.subscriberCount || 0),
+          videoCount: Number(item.statistics?.videoCount || 0),
+        };
+      }
+
+      function subscriptionFromYoutubeItem(item) {
+        const snippet = item.snippet || {};
+        const channelId = snippet.resourceId?.channelId || "";
+        return {
+          channelId,
+          title: decodeEntities(snippet.title || "YouTube"),
+          thumbnail: bestThumbnail(snippet.thumbnails),
+          url: channelUrlFromId(channelId),
+          subscriberCount: 0,
+          subscribedAt: snippet.publishedAt || new Date().toISOString(),
+        };
+      }
+
+      function videoFromYoutubeVideoItem(item) {
+        return videoFromDetails(item, {
+          id: item.id || "",
+          title: "Untitled video",
+          channel: "",
+          publishedAt: "",
+          thumbnail: "",
+          url: youtubeUrl(item.id || ""),
+        });
+      }
+
+      function mergeSubscriptions(importedSubscriptions, existingSubscriptions) {
+        const merged = [];
+        for (const subscription of [...importedSubscriptions, ...existingSubscriptions]) {
+          if (!subscription?.channelId && !subscription?.url) continue;
+          if (!merged.some((item) => sameSubscription(item, subscription))) merged.push(subscription);
+        }
+        return merged.slice(0, 200);
+      }
+
+      function renderAuthState() {
+        const signedIn = Boolean(googleAccessToken);
+        for (const button of signInButtons) {
+          const label = button.querySelector("[data-signin-label]");
+          if (label) label.textContent = signedIn ? "Signed in" : "Sign in";
+          button.title = signedIn && googleAccount?.title ? `Signed in as ${googleAccount.title}` : "Sign in with Google";
+          button.setAttribute("aria-label", button.title);
+        }
+      }
+
       function navigateFeed(view) {
         activeTopic = view === "home" ? "All" : activeTopic;
         renderChips();
@@ -3940,14 +4243,18 @@
         const fragment = document.createDocumentFragment();
 
         if (!subscriptions.length) {
-          const empty = document.createElement("div");
-          empty.className = "empty";
-          empty.innerHTML = "<strong>No subscriptions yet</strong><span>Open a video, tap Subscribe, and that channel will show up here.</span>";
-          resultsEl.replaceChildren(empty);
+          if (googleAccount || googlePlaylists.length || googleLikedVideos.length) {
+            fragment.append(accountLibraryPanel());
+          }
+          fragment.append(googleSignInEmptyState());
+          resultsEl.replaceChildren(fragment);
           return;
         }
 
         fragment.append(subscriptionChannelStrip());
+        if (googleAccount || googlePlaylists.length || googleLikedVideos.length) {
+          fragment.append(accountLibraryPanel());
+        }
 
         if (options.loading && !videos.length) {
           const grid = document.createElement("div");
@@ -3978,6 +4285,83 @@
         }
 
         resultsEl.replaceChildren(fragment);
+      }
+
+      function googleSignInEmptyState() {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        const title = googleAccessToken ? "No subscriptions found" : "Sign in to import subscriptions";
+        const copy = googleAccessToken
+          ? "Your Google account did not return subscriptions. You can still subscribe locally from any watch page."
+          : "Google sign-in can load your official YouTube subscriptions and playlists. Home and For You recommendations are not available through the public YouTube API.";
+        empty.innerHTML = `<strong>${escapeHtml(title)}</strong><span>${escapeHtml(copy)}</span>`;
+
+        if (!googleAccessToken) {
+          const actions = document.createElement("div");
+          actions.className = "empty-actions";
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "playlist-action";
+          button.textContent = "Sign in with Google";
+          button.addEventListener("click", signInGoogle);
+          actions.append(button);
+          empty.append(actions);
+        }
+
+        return empty;
+      }
+
+      function accountLibraryPanel() {
+        const section = document.createElement("section");
+        section.className = "account-library";
+        section.setAttribute("aria-label", "YouTube account library");
+
+        const head = document.createElement("div");
+        head.className = "account-library-head";
+        const copy = document.createElement("div");
+        const title = document.createElement("h2");
+        title.textContent = "Your YouTube";
+        const meta = document.createElement("p");
+        meta.textContent = googleAccount?.title ? `Signed in as ${googleAccount.title}` : "Official YouTube Data API account data";
+        copy.append(title, meta);
+        head.append(copy);
+
+        if (!googleAccessToken) {
+          const actions = document.createElement("div");
+          actions.className = "account-actions";
+          const signIn = document.createElement("button");
+          signIn.type = "button";
+          signIn.className = "playlist-action";
+          signIn.textContent = "Sign in";
+          signIn.addEventListener("click", signInGoogle);
+          actions.append(signIn);
+          head.append(actions);
+        }
+
+        section.append(head);
+
+        if (googlePlaylists.length) {
+          const playlistHeading = document.createElement("h3");
+          playlistHeading.className = "playlist-grid-heading";
+          playlistHeading.textContent = "Playlists";
+          const grid = document.createElement("div");
+          grid.className = "playlist-grid";
+          for (const playlist of googlePlaylists.slice(0, 12)) {
+            grid.append(channelPlaylistCard(playlist));
+          }
+          section.append(playlistHeading, grid);
+        }
+
+        if (googleLikedVideos.length) {
+          const likedHeading = document.createElement("h3");
+          likedHeading.className = "playlist-grid-heading";
+          likedHeading.textContent = "Liked videos";
+          const liked = document.createElement("div");
+          liked.append(videoResultsFragment(googleLikedVideos.slice(0, 12)));
+          section.append(likedHeading, liked);
+        }
+
+        return section;
       }
 
       function subscriptionChannelStrip() {
@@ -5654,20 +6038,28 @@
           || runtimeConfig.youtubeApiKey
           || window.localStorage.getItem(storageNames.youtubeKey)
           || "";
-        resolverBaseInput.value = params.get("api")
+        resolverBaseInput.value = normalizeResolverBase(params.get("api")
           || runtimeConfig.resolverBase
           || window.localStorage.getItem(storageNames.resolverBase)
-          || "http://127.0.0.1:10001";
+          || DEFAULT_RESOLVER_BASE);
         resolverKeyInput.value = params.get("apiKey")
           || runtimeConfig.resolverKey
           || window.localStorage.getItem(storageNames.resolverKey)
           || "";
+        googleClientIdInput.value = params.get("googleClientId")
+          || params.get("googleClient")
+          || runtimeConfig.googleClientId
+          || window.localStorage.getItem(storageNames.googleClientId)
+          || "";
       }
 
       function persistInputs() {
+        const normalizedBase = normalizeResolverBase(resolverBaseInput.value);
+        resolverBaseInput.value = normalizedBase;
         window.localStorage.setItem(storageNames.youtubeKey, youtubeKeyInput.value.trim());
-        window.localStorage.setItem(storageNames.resolverBase, resolverBaseInput.value.trim());
+        window.localStorage.setItem(storageNames.resolverBase, normalizedBase);
         window.localStorage.setItem(storageNames.resolverKey, resolverKeyInput.value.trim());
+        window.localStorage.setItem(storageNames.googleClientId, googleClientIdInput.value.trim());
       }
 
       function setBusy(isBusy) {
@@ -5681,7 +6073,25 @@
       }
 
       function resolverBase() {
-        return resolverBaseInput.value.trim().replace(/\/+$/, "");
+        return normalizeResolverBase(resolverBaseInput.value);
+      }
+
+      function normalizeResolverBase(value) {
+        const raw = String(value || "").trim();
+        if (!raw) return "";
+        try {
+          const url = new URL(raw);
+          url.hash = "";
+          url.search = "";
+          url.pathname = url.pathname
+            .replace(/\/+(channels\/(?:search|videos)|resolve|formats|playlist|stream|search|docs|health)\/?$/i, "")
+            .replace(/\/+$/, "");
+          return url.toString().replace(/\/+$/, "");
+        } catch {
+          return raw
+            .replace(/\/+(channels\/(?:search|videos)|resolve|formats|playlist|stream|search|docs|health)\/?$/i, "")
+            .replace(/\/+$/, "");
+        }
       }
 
       function resolverRequestHeaders(hasJson = false) {

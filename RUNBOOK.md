@@ -258,12 +258,17 @@ Do not commit live keys to `docs/config.js`. Prefer the GitHub Actions deploy wo
 YOUTUBE_API_KEY
 RESOLVER_URL
 RESOLVER_API_KEY
+GOOGLE_CLIENT_ID
 ```
+
+`RESOLVER_URL` may be the backend root or a resolver endpoint such as `https://organic-space-goggles-4jwg4v79r5rpc5qg5-10000.app.github.dev/resolve`; the UI normalizes it before calling `/search`, `/resolve`, `/formats`, and `/playlist`. If `RESOLVER_URL` is not set, the Pages workflow defaults to `https://organic-space-goggles-4jwg4v79r5rpc5qg5-10000.app.github.dev`.
+
+`GOOGLE_CLIENT_ID` is the OAuth web client ID used by the Sign in buttons. It enables official YouTube Data API account reads such as subscriptions and playlists after the user grants `youtube.readonly`. YouTube does not expose the exact personalized Home, For You, or Shorts recommendation feeds through the public API.
 
 For the branch-based `/docs` Pages method, keep `docs/config.js` empty and pass config in the URL when testing (values are visible in the browser):
 
 ```text
-https://bara-shaban.github.io/yt-dlp-backend/?ytKey=YOUR_YT_KEY&api=https%3A%2F%2Fyour-backend.example.com&apiKey=YOUR_RESOLVER_KEY
+https://bara-shaban.github.io/yt-dlp-backend/?ytKey=YOUR_YT_KEY&api=https%3A%2F%2Fyour-backend.example.com%2Fresolve&apiKey=YOUR_RESOLVER_KEY&googleClientId=YOUR_GOOGLE_CLIENT_ID
 ```
 
 ### YouTube API key restrictions

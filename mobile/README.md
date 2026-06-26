@@ -13,7 +13,13 @@ npm run android
 
 Use a development build for Chromecast because `react-native-google-cast` is a native module and is not available inside Expo Go.
 
-On a physical phone, set the API URL in the app to your computer LAN IP or deployed Render URL, for example:
+On a physical phone, the app now defaults to:
+
+```text
+https://organic-space-goggles-4jwg4v79r5rpc5qg5-10000.app.github.dev
+```
+
+If you need another backend, set the API URL in the app to your computer LAN IP or deployed resolver URL, for example:
 
 ```text
 http://192.168.1.20:10001
@@ -24,6 +30,17 @@ Android emulators can use:
 ```text
 http://10.0.2.2:10001
 ```
+
+If the backend requires an API key, enter it in the You tab. For internal EAS builds you can also provide:
+
+```text
+EXPO_PUBLIC_RESOLVER_URL
+EXPO_PUBLIC_RESOLVER_API_KEY
+```
+
+Those values are bundled into the app, so use them only for internal APK/ad hoc builds. The GitHub Pages website reads `RESOLVER_API_KEY` and `GOOGLE_CLIENT_ID` from repository secrets during the Pages deploy workflow.
+
+The web app now supports official Google OAuth account import for YouTube subscriptions and playlists. The mobile app still uses backend search plus local subscriptions/playlists until a native Google OAuth client is configured for iOS and Android. The public YouTube Data API does not provide the exact personalized Home, For You, or Shorts recommendation feeds.
 
 ## Share on real phones
 
