@@ -138,7 +138,7 @@ YTDLP_COOKIES_BASE64=...
 
 `YTDLP_COOKIES_BASE64` must contain the one-line base64 output. If you want to paste raw Netscape cookies text instead, use `YTDLP_COOKIES_TEXT`.
 
-The backend also detects raw Netscape cookies accidentally placed in `YTDLP_COOKIES_BASE64` and treats them as cookie text. Base64 is still preferred for hosted secrets because it avoids multiline copy/paste problems.
+The backend also detects raw Netscape cookies accidentally placed in `YTDLP_COOKIES_BASE64` and treats them as cookie text. It normalizes tab-separated or whitespace-separated Netscape rows before passing them to `yt-dlp`, but base64 is still preferred for hosted secrets because it avoids multiline copy/paste problems.
 
 Redeploy the service after setting it. `/health` will show `"cookies":"configured"` when the app loaded cookies.
 
@@ -156,6 +156,8 @@ YOUTUBE_COOKIES_FILE
 For GitHub Codespaces, add a Codespaces secret named `YTDLP_COOKIES_BASE64` or `YOUTUBE_COOKIES_BASE64`. If you run the API directly in that shell, the backend can read it from the process environment. If you run the API inside Docker, pass the secret into the container with `-e YTDLP_COOKIES_BASE64` or `--env-file .env`; Docker does not automatically inherit every host secret.
 
 When running the backend directly with Python, the app also auto-loads a local `.env` file before reading `API_KEY`, cookie variables, and other settings. The Docker image does not copy `.env`; use Docker's `--env-file .env` or explicit `-e` flags.
+
+Codespaces forwarded URLs can return `HTTP/2 401` with `www-authenticate: tunnel` before the request reaches FastAPI. That is Codespaces tunnel auth, not the backend API key. Make the forwarded backend port public in the Codespaces Ports panel, or use a hosted backend URL that is publicly reachable by the static frontend.
 
 To inspect available formats first:
 

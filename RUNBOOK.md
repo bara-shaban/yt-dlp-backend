@@ -64,7 +64,7 @@ To generate a valid base64 cookie secret from a Netscape `cookies.txt` export:
 
 Use the one-line output as `YTDLP_COOKIES_BASE64`. Do not paste the raw cookies file into `YTDLP_COOKIES_BASE64`; raw text belongs in `YTDLP_COOKIES_TEXT`.
 
-For convenience, the backend also detects raw Netscape cookies accidentally placed in `YTDLP_COOKIES_BASE64` and treats them as cookie text. Base64 is still preferred for hosted secrets because it survives copy/paste and multiline secret handling better.
+For convenience, the backend also detects raw Netscape cookies accidentally placed in `YTDLP_COOKIES_BASE64` and treats them as cookie text. It normalizes tab-separated or whitespace-separated Netscape rows before writing `/tmp/yt-dlp-cookies.txt`. Base64 is still preferred for hosted secrets because it survives copy/paste and multiline secret handling better.
 
 The container listens on port `10000`. The host maps it to `10001`, so your local backend URL is:
 
@@ -132,6 +132,8 @@ Expected shape:
 ```
 
 If cookies are not mounted, `cookies` will show `disabled`.
+
+If a forwarded Codespaces backend URL returns `HTTP/2 401` with `www-authenticate: tunnel`, the request is being blocked by Codespaces before it reaches FastAPI. Open the Codespaces Ports panel and set port `10001` to public, or use a normal hosted backend URL for GitHub Pages/mobile clients.
 
 ## API Docs
 

@@ -79,16 +79,76 @@ def load_env_file() -> None:
         os.environ[key] = value
 
 
+NETSCAPE_COOKIE_HEADER = "# Netscape HTTP Cookie File"
+
+
 def looks_like_netscape_cookies(value: str) -> bool:
     lines = [line.strip() for line in value.splitlines() if line.strip()]
     if not lines:
         return False
-    if any(line.startswith("# Netscape HTTP Cookie File") for line in lines):
+    if any(line.startswith(NETSCAPE_COOKIE_HEADER) for line in lines):
         return True
     return any(
-        not line.startswith("#") and len(line.split("\t")) >= 7
+        not line.startswith("#") and len(line.split()) >= 7
         for line in lines
     )
+
+
+def normalize_netscape_cookies(cookie_text: str, source_name: str) -> str:
+    normalized_lines: list[str] = []
+    has_header = False
+    has_cookie = False
+
+    for line_number, raw_line in enumerate(cookie_text.replace("\r\n", "\n").replace("\r", "\n").split("\n"), 1):
+        stripped = raw_line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith("#"):
+            has_header = has_header or stripped.startswith(NETSCAPE_COOKIE_HEADER)
+            normalized_lines.append(stripped)
+            continue
+
+        parts = raw_line.rstrip("\n").split("\t")
+        if len(parts) < 7:
+            parts = stripped.split(None, 6)
+        if len(parts) > 7:
+            parts = parts[:6] + ["\t".join(parts[6:])]
+        if len(parts) != 7:
+            raise RuntimeError(
+                f"{source_name} line {line_number} is not a Netscape cookie row. "
+                "Expected 7 columns: domain, include_subdomains, path, secure, expires, name, value."
+            )
+
+        domain, include_subdomains, path, secure, expires, name, value = [
+            part.strip() for part in parts[:6]
+        ] + [parts[6].strip()]
+        include_subdomains = include_subdomains.upper()
+        secure = secure.upper()
+        if include_subdomains not in {"TRUE", "FALSE"} or secure not in {"TRUE", "FALSE"}:
+            raise RuntimeError(
+                f"{source_name} line {line_number} is not a Netscape cookie row. "
+                "Columns 2 and 4 must be TRUE or FALSE."
+            )
+        if not domain or not path or not expires or not name:
+            raise RuntimeError(
+                f"{source_name} line {line_number} is not a Netscape cookie row. "
+                "Domain, path, expires, and name are required."
+            )
+        if not expires.isdigit():
+            raise RuntimeError(
+                f"{source_name} line {line_number} is not a Netscape cookie row. "
+                "Column 5 must be a numeric expiration timestamp."
+            )
+
+        normalized_lines.append("\t".join([domain, include_subdomains, path, secure, expires, name, value]))
+        has_cookie = True
+
+    if not has_cookie:
+        raise RuntimeError(f"{source_name} does not contain any usable Netscape cookie rows.")
+    if not has_header:
+        normalized_lines.insert(0, NETSCAPE_COOKIE_HEADER)
+
+    return "\n".join(normalized_lines).rstrip() + "\n"
 
 
 def init_cookie_file() -> str | None:
@@ -97,17 +157,18 @@ def init_cookie_file() -> str | None:
         source_path = Path(cookie_file)
         if source_path.exists():
             cookie_path = Path(os.getenv("YTDLP_COOKIES_PATH", "/tmp/yt-dlp-cookies.txt"))
-            if source_path.resolve() != cookie_path.resolve():
-                cookie_path.write_text(source_path.read_text(encoding="utf-8"), encoding="utf-8")
-                cookie_path.chmod(0o600)
-                return str(cookie_path)
+            cookie_text = normalize_netscape_cookies(source_path.read_text(encoding="utf-8"), str(source_path))
+            cookie_path.write_text(cookie_text, encoding="utf-8")
+            cookie_path.chmod(0o600)
+            return str(cookie_path)
         return str(source_path)
 
-    cookie_text = env_first("YTDLP_COOKIES_TEXT", "YOUTUBE_COOKIES_TEXT")
+    cookie_text_name, cookie_text = env_first_pair("YTDLP_COOKIES_TEXT", "YOUTUBE_COOKIES_TEXT")
     cookie_base64_name, cookie_base64 = env_first_pair("YTDLP_COOKIES_BASE64", "YOUTUBE_COOKIES_BASE64")
     if not cookie_text and not cookie_base64:
         return None
 
+    cookie_source_name = cookie_text_name or cookie_base64_name or "cookie secret"
     if cookie_base64:
         try:
             cookie_text = base64.b64decode(cookie_base64.strip(), validate=True).decode("utf-8")
@@ -119,9 +180,10 @@ def init_cookie_file() -> str | None:
                     f"{cookie_base64_name} must be base64-encoded UTF-8 Netscape cookies text. "
                     "Generate it with: base64 -w0 cookies.txt, or put raw cookies in YTDLP_COOKIES_TEXT."
                 ) from exc
+        cookie_source_name = cookie_base64_name or cookie_source_name
 
     cookie_path = Path(os.getenv("YTDLP_COOKIES_PATH", "/tmp/yt-dlp-cookies.txt"))
-    cookie_path.write_text(cookie_text or "", encoding="utf-8")
+    cookie_path.write_text(normalize_netscape_cookies(cookie_text or "", cookie_source_name), encoding="utf-8")
     cookie_path.chmod(0o600)
     return str(cookie_path)
 
