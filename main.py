@@ -151,17 +151,25 @@ def normalize_netscape_cookies(cookie_text: str, source_name: str) -> str:
     return "\n".join(normalized_lines).rstrip() + "\n"
 
 
+def count_netscape_cookie_rows(cookie_text: str) -> int:
+    return sum(
+        1
+        for line in cookie_text.splitlines()
+        if line.strip() and not line.lstrip().startswith("#") and len(line.split("\t")) >= 7
+    )
+
+
 def init_cookie_file() -> str | None:
-    cookie_file = env_first("YTDLP_COOKIES_FILE", "YOUTUBE_COOKIES_FILE")
+    cookie_file_name, cookie_file = env_first_pair("YTDLP_COOKIES_FILE", "YOUTUBE_COOKIES_FILE")
     if cookie_file:
         source_path = Path(cookie_file)
-        if source_path.exists():
-            cookie_path = Path(os.getenv("YTDLP_COOKIES_PATH", "/tmp/yt-dlp-cookies.txt"))
-            cookie_text = normalize_netscape_cookies(source_path.read_text(encoding="utf-8"), str(source_path))
-            cookie_path.write_text(cookie_text, encoding="utf-8")
-            cookie_path.chmod(0o600)
-            return str(cookie_path)
-        return str(source_path)
+        if not source_path.exists():
+            raise RuntimeError(f"{cookie_file_name} points to a missing cookies file: {source_path}")
+        cookie_path = Path(os.getenv("YTDLP_COOKIES_PATH", "/tmp/yt-dlp-cookies.txt"))
+        cookie_text = normalize_netscape_cookies(source_path.read_text(encoding="utf-8"), str(source_path))
+        cookie_path.write_text(cookie_text, encoding="utf-8")
+        cookie_path.chmod(0o600)
+        return str(cookie_path)
 
     cookie_text_name, cookie_text = env_first_pair("YTDLP_COOKIES_TEXT", "YOUTUBE_COOKIES_TEXT")
     cookie_base64_name, cookie_base64 = env_first_pair("YTDLP_COOKIES_BASE64", "YOUTUBE_COOKIES_BASE64")
@@ -186,6 +194,23 @@ def init_cookie_file() -> str | None:
     cookie_path.write_text(normalize_netscape_cookies(cookie_text or "", cookie_source_name), encoding="utf-8")
     cookie_path.chmod(0o600)
     return str(cookie_path)
+
+
+def cookie_file_status(cookie_file: str | None) -> dict[str, Any]:
+    if not cookie_file:
+        return {"state": "disabled", "rows": 0}
+    try:
+        cookie_text = Path(cookie_file).read_text(encoding="utf-8")
+    except OSError:
+        return {"state": "missing", "rows": 0}
+
+    rows = count_netscape_cookie_rows(cookie_text)
+    first_line = next((line.strip() for line in cookie_text.splitlines() if line.strip()), "")
+    if rows <= 0:
+        return {"state": "invalid", "rows": 0}
+    if not first_line.startswith(NETSCAPE_COOKIE_HEADER):
+        return {"state": "missing-header", "rows": rows}
+    return {"state": "configured", "rows": rows}
 
 
 load_env_file()
@@ -372,10 +397,12 @@ def root() -> dict[str, Any]:
 
 @app.get("/health")
 def health() -> dict[str, Any]:
+    cookie_status = cookie_file_status(YTDLP_COOKIES_FILE)
     return {
         "ok": True,
         "yt_dlp_version": YT_DLP_VERSION,
-        "cookies": "configured" if YTDLP_COOKIES_FILE else "disabled",
+        "cookies": cookie_status["state"],
+        "cookie_file": cookie_status,
         "js_runtimes": YTDLP_JS_RUNTIMES,
         "remote_components": YTDLP_REMOTE_COMPONENTS,
         "embed_fallback": "enabled" if ENABLE_EMBED_FALLBACK else "disabled",
