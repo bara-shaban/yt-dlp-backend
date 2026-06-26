@@ -1441,10 +1441,9 @@
       .player-overlay {
         position: absolute;
         inset: 0;
-        display: grid;
-        place-items: center;
-        align-content: center;
-        gap: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         background:
           linear-gradient(180deg, rgba(0, 0, 0, 0.54), rgba(0, 0, 0, 0.22) 48%, rgba(0, 0, 0, 0.68)),
           #050505;
@@ -1455,6 +1454,19 @@
 
       .player-overlay.is-ready {
         display: none;
+      }
+
+      .player-resolve-card {
+        display: grid;
+        justify-items: center;
+        gap: 14px;
+        width: min(520px, 100%);
+        padding: 22px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 18px;
+        background: rgba(15, 15, 15, 0.82);
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
+        backdrop-filter: blur(18px);
       }
 
       .player-spinner {
@@ -1478,6 +1490,53 @@
         font-size: 15px;
         line-height: 1.45;
         overflow-wrap: anywhere;
+      }
+
+      .player-kicker {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .player-overlay.is-error .player-kicker {
+        color: #ff9a9a;
+      }
+
+      .resolve-steps {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+      }
+
+      .resolve-steps span {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.09);
+        color: rgba(255, 255, 255, 0.66);
+        padding: 0 10px;
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .resolve-steps span.is-complete {
+        background: rgba(62, 166, 255, 0.18);
+        color: #b9ddff;
+      }
+
+      .resolve-steps span.is-active {
+        background: #ffffff;
+        color: #0f0f0f;
+      }
+
+      .player-overlay.is-error .resolve-steps span.is-active {
+        background: #ff5a6f;
+        color: #ffffff;
       }
 
       .player-overlay-actions {
@@ -2828,7 +2887,7 @@
           </div>
           <div>
             <label for="googleClientId">Google OAuth client ID</label>
-            <input id="googleClientId" type="password" autocomplete="off">
+            <input id="googleClientId" type="text" autocomplete="off" spellcheck="false" placeholder="1234567890-abc.apps.googleusercontent.com">
           </div>
         </div>
       </section>
@@ -2886,12 +2945,20 @@
                 </div>
               </div>
               <div id="playerOverlay" class="player-overlay">
-                <div id="playerSpinner" class="player-spinner" aria-hidden="true"></div>
-                <p id="playerStatus" class="player-status" role="status" aria-live="polite"></p>
-                <div class="player-overlay-actions">
-                  <button id="watchRetry" class="player-button" type="button">Retry</button>
-                  <a id="watchOpenYoutube" class="player-link" target="_blank" rel="noreferrer">YouTube</a>
-                  <a id="watchOpenDirect" class="player-link" target="_blank" rel="noreferrer" aria-disabled="true">Direct</a>
+                <div class="player-resolve-card">
+                  <div id="playerSpinner" class="player-spinner" aria-hidden="true"></div>
+                  <p id="playerKicker" class="player-kicker">Preparing stream</p>
+                  <p id="playerStatus" class="player-status" role="status" aria-live="polite"></p>
+                  <div id="resolveSteps" class="resolve-steps" aria-hidden="true">
+                    <span data-resolve-step="request">Resolver</span>
+                    <span data-resolve-step="format">Format</span>
+                    <span data-resolve-step="player">Player</span>
+                  </div>
+                  <div class="player-overlay-actions">
+                    <button id="watchRetry" class="player-button" type="button">Retry</button>
+                    <a id="watchOpenYoutube" class="player-link" target="_blank" rel="noreferrer">YouTube</a>
+                    <a id="watchOpenDirect" class="player-link" target="_blank" rel="noreferrer" aria-disabled="true">Direct</a>
+                  </div>
                 </div>
               </div>
             </div>
@@ -3005,6 +3072,7 @@
         resolverBase: "yt-public-ui-resolver-base",
         resolverKey: "yt-public-ui-resolver-key",
         googleClientId: "yt-public-ui-google-client-id",
+        googleSession: "yt-public-ui-google-session",
         watchHistory: "yt-public-ui-watch-history",
         subscriptions: "yt-public-ui-subscriptions",
         playlist: "yt-public-ui-playlist",
@@ -3059,7 +3127,9 @@
       const playerShell = document.querySelector(".player-shell");
       const playerOverlay = document.querySelector("#playerOverlay");
       const playerSpinner = document.querySelector("#playerSpinner");
+      const playerKicker = document.querySelector("#playerKicker");
       const playerStatus = document.querySelector("#playerStatus");
+      const resolveSteps = document.querySelector("#resolveSteps");
       const customControls = document.querySelector("#customControls");
       const centerPlayButton = document.querySelector("#centerPlayButton");
       const centerPlayIcon = document.querySelector("#centerPlayIcon");
@@ -3154,7 +3224,8 @@
       let googleTokenClientId = "";
       let pendingGoogleTokenResolve = null;
       let pendingGoogleTokenReject = null;
-      let googleAccount = null;
+      let googleSession = loadGoogleSession();
+      let googleAccount = googleSession?.account || null;
       let googlePlaylists = [];
       let googleLikedVideos = [];
 
@@ -3845,6 +3916,11 @@
           setStatus("Add GOOGLE_CLIENT_ID as a Pages secret or paste the Google OAuth client ID in Frontend keys.", true);
           return;
         }
+        if (!isGoogleOAuthClientId(clientId)) {
+          document.querySelector("#settings")?.scrollIntoView({ block: "center" });
+          setStatus("Google OAuth client ID must look like 1234567890-abc.apps.googleusercontent.com. Do not use the API key or client secret.", true);
+          return;
+        }
 
         try {
           setStatus("Opening Google sign-in...");
@@ -3859,6 +3935,10 @@
 
       function googleClientId() {
         return googleClientIdInput.value.trim();
+      }
+
+      function isGoogleOAuthClientId(value) {
+        return /^\d+[-\w]+\.apps\.googleusercontent\.com$/.test(String(value || "").trim());
       }
 
       function waitForGoogleIdentity() {
@@ -3991,6 +4071,14 @@
           ? likedResult.value.items.map(videoFromYoutubeVideoItem).filter((video) => video.url)
           : [];
 
+        persistGoogleSession({
+          account: googleAccount,
+          subscriptionsCount: importedSubscriptions.length,
+          playlistsCount: googlePlaylists.length,
+          likedVideosCount: googleLikedVideos.length,
+          signedInAt: new Date().toISOString(),
+        });
+
         renderAuthState();
         if (currentFeedMode === "subscriptions") await loadSubscriptionsFeed(true);
         const parts = [
@@ -4072,11 +4160,12 @@
       }
 
       function renderAuthState() {
-        const signedIn = Boolean(googleAccessToken);
+        const account = googleAccount || googleSession?.account || null;
+        const signedIn = Boolean(googleAccessToken || account);
         for (const button of signInButtons) {
           const label = button.querySelector("[data-signin-label]");
-          if (label) label.textContent = signedIn ? "Signed in" : "Sign in";
-          button.title = signedIn && googleAccount?.title ? `Signed in as ${googleAccount.title}` : "Sign in with Google";
+          if (label) label.textContent = signedIn ? (account?.title || "Signed in") : "Sign in";
+          button.title = signedIn && account?.title ? `Signed in as ${account.title}` : "Sign in with Google";
           button.setAttribute("aria-label", button.title);
         }
       }
@@ -5343,7 +5432,7 @@
         playerShell.classList.remove("is-playing");
         playerOverlay.classList.remove("is-ready", "is-error", "is-idle");
         playerSpinner.hidden = false;
-        playerStatus.textContent = "Resolving video...";
+        setPlayerMessage("Contacting the resolver and preparing a playable stream...", false, "request");
         disableLink(watchOpenDirect);
         updatePlayerState();
       }
@@ -5365,7 +5454,7 @@
         const requestedFormatId = selectedFormatId;
         const resumeAt = options.preserveTime ? mediaPlayer.currentTime : 0;
         const shouldAutoplay = options.autoplay ?? true;
-        setPlayerMessage(`Resolving ${qualityLabel}...`);
+        setPlayerMessage(`Resolving ${qualityLabel} through the backend...`, false, "request");
 
         try {
           const body = { url: video.url };
@@ -5379,6 +5468,7 @@
           });
 
           if (sequence !== resolveSequence) return;
+          setPlayerMessage("Playable stream found. Checking the selected format...", false, "format");
           const link = extractPlayableLink(payload);
           if (!link) {
             throw new Error("The resolver did not return a playable link.");
@@ -5389,6 +5479,7 @@
           watchOpenDirect.href = link;
           watchOpenDirect.setAttribute("aria-disabled", "false");
           watchCopy.disabled = false;
+          setPlayerMessage("Loading the stream into the player...", false, "player");
           await playResolvedLink(link, video, { resumeAt, autoplay: shouldAutoplay });
           setStatus(fallbackMessage || "");
         } catch (error) {
@@ -5397,7 +5488,7 @@
             selectedFormatId = "";
             customQuality.value = "";
             setStatus(`${qualityLabel} is not available. Retrying Auto...`);
-            setPlayerMessage(`${qualityLabel} is not available. Retrying Auto...`);
+            setPlayerMessage(`${qualityLabel} is not available. Retrying Auto...`, false, "format");
             await resolveVideo(video, {
               ...options,
               preserveTime: options.preserveTime || mediaPlayer.currentTime > 0,
@@ -5598,12 +5689,30 @@
         }
       }
 
-      function setPlayerMessage(message, isError = false) {
+      function setPlayerMessage(message, isError = false, phase = "request") {
         playerStatus.textContent = message;
+        playerKicker.textContent = isError ? "Playback needs attention" : resolvePhaseLabel(phase);
         playerOverlay.classList.remove("is-ready", "is-error", "is-idle");
         playerOverlay.classList.toggle("is-error", isError);
         playerOverlay.classList.toggle("is-idle", !message);
+        updateResolveSteps(isError ? "error" : phase);
         playerShell.classList.add("show-controls");
+      }
+
+      function resolvePhaseLabel(phase) {
+        if (phase === "format") return "Choosing format";
+        if (phase === "player") return "Starting player";
+        return "Preparing stream";
+      }
+
+      function updateResolveSteps(activeStep) {
+        const order = ["request", "format", "player"];
+        const activeIndex = order.indexOf(activeStep);
+        for (const step of resolveSteps.querySelectorAll("[data-resolve-step]")) {
+          const stepIndex = order.indexOf(step.dataset.resolveStep);
+          step.classList.toggle("is-active", activeStep === "error" ? step.dataset.resolveStep === "request" : stepIndex === activeIndex);
+          step.classList.toggle("is-complete", activeIndex > -1 && stepIndex > -1 && stepIndex < activeIndex);
+        }
       }
 
       async function loadChannelDetails(video) {
@@ -6423,6 +6532,48 @@
 
       function saveStoredList(key, value) {
         window.localStorage.setItem(key, JSON.stringify(value));
+      }
+
+      function loadGoogleSession() {
+        try {
+          const raw = readCookie(storageNames.googleSession);
+          if (!raw) return null;
+          const session = JSON.parse(raw);
+          if (!session?.account?.title) return null;
+          if (session.expiresAt && Date.parse(session.expiresAt) <= Date.now()) {
+            clearCookie(storageNames.googleSession);
+            return null;
+          }
+          return session;
+        } catch {
+          return null;
+        }
+      }
+
+      function persistGoogleSession(session) {
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+        googleSession = {
+          ...session,
+          expiresAt,
+        };
+        writeCookie(storageNames.googleSession, JSON.stringify(googleSession), 7 * 24 * 60 * 60);
+      }
+
+      function readCookie(name) {
+        const encodedName = `${encodeURIComponent(name)}=`;
+        const pair = document.cookie
+          .split("; ")
+          .find((item) => item.startsWith(encodedName));
+        return pair ? decodeURIComponent(pair.slice(encodedName.length)) : "";
+      }
+
+      function writeCookie(name, value, maxAgeSeconds) {
+        const secure = window.location.protocol === "https:" ? "; Secure" : "";
+        document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; Max-Age=${maxAgeSeconds}; Path=/; SameSite=Lax${secure}`;
+      }
+
+      function clearCookie(name) {
+        document.cookie = `${encodeURIComponent(name)}=; Max-Age=0; Path=/; SameSite=Lax`;
       }
 
       function simplifyTitle(title) {
