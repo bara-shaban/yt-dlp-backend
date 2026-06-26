@@ -229,6 +229,19 @@ YTDLP_REMOTE_COMPONENTS = [
     for item in os.getenv("YTDLP_REMOTE_COMPONENTS", "ejs:github").split(",")
     if item.strip()
 ]
+YTDLP_PROXY = env_first("YTDLP_PROXY", "HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy")
+YTDLP_YT_PLAYER_CLIENT = [
+    item.strip()
+    for item in os.getenv("YTDLP_YT_PLAYER_CLIENT", "").split(",")
+    if item.strip()
+]
+YTDLP_YT_PO_TOKEN = [
+    item.strip()
+    for item in os.getenv("YTDLP_YT_PO_TOKEN", "").split(",")
+    if item.strip()
+]
+YTDLP_YT_VISITOR_DATA = os.getenv("YTDLP_YT_VISITOR_DATA", "").strip() or None
+BGUTIL_POT_BASE_URL = os.getenv("BGUTIL_POT_BASE_URL", "").strip() or None
 REQUEST_TIMEOUT_SECONDS = env_int("REQUEST_TIMEOUT_SECONDS", 90, minimum=1)
 SOCKET_TIMEOUT_SECONDS = env_int("SOCKET_TIMEOUT_SECONDS", 20, minimum=1)
 STREAM_TIMEOUT_SECONDS = env_int("STREAM_TIMEOUT_SECONDS", 30, minimum=1)
@@ -407,6 +420,11 @@ def health() -> dict[str, Any]:
         "remote_components": YTDLP_REMOTE_COMPONENTS,
         "embed_fallback": "enabled" if ENABLE_EMBED_FALLBACK else "disabled",
         "max_embed_candidates": MAX_EMBED_CANDIDATES,
+        "proxy": "configured" if YTDLP_PROXY else "disabled",
+        "youtube_player_client": YTDLP_YT_PLAYER_CLIENT or "default",
+        "youtube_po_token": "configured" if YTDLP_YT_PO_TOKEN else "disabled",
+        "youtube_visitor_data": "configured" if YTDLP_YT_VISITOR_DATA else "disabled",
+        "pot_provider": BGUTIL_POT_BASE_URL or "disabled",
     }
 
 
@@ -959,6 +977,21 @@ def base_ytdlp_opts() -> dict[str, Any]:
         ydl_opts["js_runtimes"] = {runtime: {} for runtime in YTDLP_JS_RUNTIMES}
     if YTDLP_REMOTE_COMPONENTS:
         ydl_opts["remote_components"] = set(YTDLP_REMOTE_COMPONENTS)
+    if YTDLP_PROXY:
+        ydl_opts["proxy"] = YTDLP_PROXY
+    youtube_extractor_args: dict[str, list[str]] = {}
+    if YTDLP_YT_PLAYER_CLIENT:
+        youtube_extractor_args["player_client"] = list(YTDLP_YT_PLAYER_CLIENT)
+    if YTDLP_YT_PO_TOKEN:
+        youtube_extractor_args["po_token"] = list(YTDLP_YT_PO_TOKEN)
+    if YTDLP_YT_VISITOR_DATA:
+        youtube_extractor_args["visitor_data"] = [YTDLP_YT_VISITOR_DATA]
+    if youtube_extractor_args:
+        ydl_opts["extractor_args"] = {"youtube": youtube_extractor_args}
+    if BGUTIL_POT_BASE_URL:
+        ydl_opts.setdefault("extractor_args", {})["youtubepot-bgutilhttp"] = {
+            "base_url": [BGUTIL_POT_BASE_URL]
+        }
     return ydl_opts
 
 

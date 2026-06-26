@@ -351,6 +351,11 @@ yt_dlp_api
 - `YTDLP_COOKIES_BASE64`: cookies as base64 text for hosted deployments.
 - `YTDLP_COOKIES_TEXT`: raw Netscape cookies text.
 - `YOUTUBE_COOKIES_FILE`, `YOUTUBE_COOKIES_BASE64`, `YOUTUBE_COOKIES_TEXT`: aliases for the same cookie inputs.
+- `YTDLP_PROXY`: proxy URL passed to yt-dlp (`http://user:pass@host:port` or `socks5://...`). Also reads `HTTPS_PROXY`/`HTTP_PROXY` as fallbacks. Use a residential proxy when running from Codespaces/Render to bypass YouTube's datacenter-IP bot check.
+- `YTDLP_YT_PLAYER_CLIENT`: comma-separated YouTube clients passed to the extractor (e.g. `web,default` or `tv,web_safari`). Empty means yt-dlp's default.
+- `YTDLP_YT_PO_TOKEN`: comma-separated `client.context+TOKEN` entries (e.g. `web.gvs+XXXX,web.player+YYYY`). Needed alongside cookies on datacenter IPs.
+- `YTDLP_YT_VISITOR_DATA`: visitor data string bound to the po_token batch.
+- `BGUTIL_POT_BASE_URL`: base URL of a running `bgutil-ytdlp-pot-provider` HTTP server (e.g. `http://bgutil-provider:4416` when using docker-compose). When set, yt-dlp asks that server for po_tokens automatically and you no longer need `YTDLP_YT_PO_TOKEN`/`YTDLP_YT_VISITOR_DATA`.
 - `REQUEST_TIMEOUT_SECONDS`: yt-dlp timeout. Default is `90`.
 - `MAX_CONCURRENT_REQUESTS`: concurrent extraction limit. Default is `2`.
 - `DEFAULT_FORMAT`: default yt-dlp format selector.
@@ -403,3 +408,91 @@ Send `x-api-key` or remove the `API_KEY` environment variable when running local
 Video does not play:
 
 Try `/formats`, then use a combined audio/video `format_id` such as `18`, or use `/stream` instead of `direct_url`.
+
+## YouTube "Sign in to confirm you're not a bot"
+
+This error means YouTube classified the outbound IP as a datacenter / shared range and is requiring a verified session. GitHub Codespaces, Render, Fly, and most cloud VMs are affected. There is no single fix — combine the steps below until extraction succeeds.
+
+### 1. Provide real browser cookies (mandatory)
+
+Export YouTube cookies from a logged-in browser using a Netscape-format exporter (the yt-dlp wiki "Exporting YouTube cookies" page covers the current method). Tips that matter:
+
+- Use a fresh **incognito/private** window, log in, export, then close the window without browsing further. Browsing after export rotates the session and invalidates the file.
+- Prefer a low-value Google account dedicated to this. YouTube can lock accounts that show automated patterns.
+
+Then store the cookies as a Codespaces secret:
+
+```bash
+gh secret set YTDLP_COOKIES_BASE64 --body "$(base64 -w0 cookies.txt)"
+```
+
+Restart the codespace so the secret is exported into the shell, then run the backend.
+
+### 2. Add a `po_token` (often required from datacenter IPs)
+
+Cookies alone are usually not enough from a Codespaces IP — YouTube's GVS endpoint also wants a `po_token`. The reliable way to generate one is the `bgutil-ytdlp-pot-provider` plugin (runs a small HTTP server in a sidecar container that yt-dlp queries automatically).
+
+**Recommended: run the full stack with docker-compose**
+
+`docker-compose.yml` already wires the sidecar in. The backend image now ships the `bgutil-ytdlp-pot-provider` Python plugin (see `requirements.txt`). Bring everything up with:
+
+```bash
+./scripts/run-stack-docker.sh
+```
+
+This brings up two containers:
+
+- `yt-dlp-bgutil-provider` — `brainicism/bgutil-ytdlp-pot-provider`, listens on `bgutil-provider:4416` inside the compose network.
+- `yt-dlp-backend` — this app, with `BGUTIL_POT_BASE_URL=http://bgutil-provider:4416` already set.
+
+Cookie env vars (`YTDLP_COOKIES_BASE64`, etc.) are read from your shell and passed through. Optional: set `YTDLP_PROXY`, `YTDLP_YT_PLAYER_CLIENT`, `BGUTIL_TOKEN_TTL` before running.
+
+To verify the plugin loaded, look for these lines in container logs:
+
+```
+[debug] [youtube] [pot] PO Token Providers: bgutil:http-... (external)
+[debug] [youtube] [pot] Fetching ... PO Token via bgutil:http
+```
+
+**Fallback: pass tokens manually**
+
+If you generate tokens externally instead, set:
+
+```bash
+YTDLP_YT_PLAYER_CLIENT=web,default
+YTDLP_YT_PO_TOKEN=web.gvs+POT_GVS_TOKEN,web.player+POT_PLAYER_TOKEN
+YTDLP_YT_VISITOR_DATA=THE_VISITOR_DATA_THE_TOKEN_WAS_BOUND_TO
+```
+
+`po_token` is bound to **visitor data + video id**, so externally-generated tokens expire quickly. The sidecar is the durable option.
+
+### 3. Route through a residential proxy (most reliable)
+
+YouTube's datacenter-IP block is the actual root cause. Cookies and po_tokens are workarounds that YouTube tightens every few months. A residential proxy bypasses the issue entirely:
+
+```bash
+YTDLP_PROXY=http://user:pass@residential.example.com:8000
+```
+
+The backend also picks up standard `HTTPS_PROXY` / `HTTP_PROXY` env vars.
+
+### 4. Run the backend off Codespaces
+
+A home server, a Tailscale exit node pointing at your home, or a small VPS on a less-blacklisted ASN will often work with cookies alone. For anything close to production, this plus #3 is the only durable path.
+
+### Verifying configuration
+
+`GET /health` now reports the relevant state without leaking secrets:
+
+```json
+{
+  "cookies": "configured",
+  "proxy": "configured",
+  "youtube_player_client": ["web", "default"],
+  "youtube_po_token": "configured",
+  "youtube_visitor_data": "configured",
+  "pot_provider": "http://bgutil-provider:4416"
+}
+```
+
+If you still get `Sign in to confirm you're not a bot` after all four, the cookies have rotated — re-export them.

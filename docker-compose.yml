@@ -1,0 +1,38 @@
+services:
+  bgutil-provider:
+    image: brainicism/bgutil-ytdlp-pot-provider:latest
+    container_name: yt-dlp-bgutil-provider
+    init: true
+    restart: unless-stopped
+    expose:
+      - "4416"
+    environment:
+      TOKEN_TTL: "${BGUTIL_TOKEN_TTL:-6}"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4416/ping').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  backend:
+    build: .
+    image: yt-dlp-media-url-api
+    container_name: yt-dlp-backend
+    depends_on:
+      bgutil-provider:
+        condition: service_started
+    restart: unless-stopped
+    ports:
+      - "${HOST_PORT:-10001}:10000"
+    environment:
+      PORT: "10000"
+      API_KEY: "${API_KEY:-}"
+      CORS_ORIGINS: "${CORS_ORIGINS:-*}"
+      BGUTIL_POT_BASE_URL: "http://bgutil-provider:4416"
+      YTDLP_PROXY: "${YTDLP_PROXY:-}"
+      YTDLP_YT_PLAYER_CLIENT: "${YTDLP_YT_PLAYER_CLIENT:-}"
+      YTDLP_COOKIES_BASE64: "${YTDLP_COOKIES_BASE64:-}"
+      YTDLP_COOKIES_TEXT: "${YTDLP_COOKIES_TEXT:-}"
+      YOUTUBE_COOKIES_BASE64: "${YOUTUBE_COOKIES_BASE64:-}"
+      YOUTUBE_COOKIES_TEXT: "${YOUTUBE_COOKIES_TEXT:-}"
