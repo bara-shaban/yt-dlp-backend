@@ -10,6 +10,7 @@
       "**/*"
     ],
     "ios": {
+      "bundleIdentifier": "com.bara.aiwa7shtube",
       "supportsTablet": true,
       "infoPlist": {
         "NSAppTransportSecurity": {
@@ -26,6 +27,7 @@
       }
     },
     "android": {
+      "package": "com.bara.aiwa7shtube",
       "usesCleartextTraffic": true,
       "permissions": [
         "ACCESS_NETWORK_STATE",

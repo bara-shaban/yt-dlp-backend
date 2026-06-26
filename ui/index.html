@@ -1199,7 +1199,7 @@
       }
 
       .player-shell.has-cast .cast-button {
-        pointer-events: auto;
+        pointer-events: none;
       }
 
       .player-shell.is-custom.show-controls .custom-controls,
@@ -1208,11 +1208,10 @@
         transform: translateY(0);
       }
 
-      .player-shell.has-cast.is-custom.show-controls .cast-button,
-      .player-shell.has-cast.is-custom:not(.is-playing) .cast-button,
-      .player-shell.has-cast.is-native.show-controls .cast-button,
-      .player-shell.has-cast.is-native:not(.is-playing) .cast-button {
+      .player-shell.has-cast.show-controls .cast-button,
+      .player-shell.has-cast:focus-within .cast-button {
         opacity: 1;
+        pointer-events: auto;
         transform: translateY(0);
       }
 
@@ -1233,6 +1232,10 @@
 
       .player-shell.is-native .custom-controls,
       .player-shell.is-native .center-play {
+        display: none;
+      }
+
+      .player-shell:not(.can-pip) #customPip {
         display: none;
       }
 
@@ -1301,6 +1304,11 @@
 
       .control-button.primary {
         background: rgba(255, 255, 255, 0.18);
+      }
+
+      .control-button.is-active {
+        background: rgba(62, 166, 255, 0.28);
+        color: #ffffff;
       }
 
       .control-button:hover {
@@ -1510,6 +1518,99 @@
 
       body.is-theater .rail-list {
         grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .mini-player {
+        position: fixed;
+        z-index: 35;
+        right: clamp(16px, 2vw, 28px);
+        bottom: 18px;
+        display: grid;
+        grid-template-columns: minmax(112px, 168px) minmax(0, 1fr) 42px 42px;
+        gap: 10px;
+        align-items: center;
+        width: min(520px, calc(100vw - 32px));
+        min-height: 84px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 13px;
+        background: rgba(18, 18, 18, 0.96);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        backdrop-filter: blur(16px);
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(120%);
+        transition: opacity 180ms ease, transform 180ms ease;
+      }
+
+      .mini-player.is-visible {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateY(0);
+      }
+
+      .mini-open {
+        display: contents;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        text-align: left;
+      }
+
+      .mini-thumb {
+        overflow: hidden;
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        margin-left: 8px;
+        border-radius: 9px;
+        background: #000;
+      }
+
+      .mini-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .mini-copy {
+        min-width: 0;
+      }
+
+      .mini-title,
+      .mini-meta {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .mini-title {
+        color: var(--text);
+        font-size: 14px;
+        font-weight: 800;
+      }
+
+      .mini-meta {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .mini-control {
+        display: grid;
+        place-items: center;
+        width: 38px;
+        height: 38px;
+        border: 0;
+        border-radius: 50%;
+        background: #303030;
+        color: #fff;
+        font-size: 20px;
+        font-weight: 900;
+      }
+
+      .mini-control:hover {
+        background: #424242;
       }
 
       .watch-title {
@@ -2389,12 +2490,33 @@
 
         .watch-page {
           gap: 16px;
+          width: 100%;
           max-width: 100vw;
           overflow: hidden;
         }
 
+        .watch-primary,
+        .player-stage,
+        .watch-rail,
+        .player-modebar,
+        .watch-title,
+        .watch-toolbar,
+        .watch-description,
+        .comments-panel {
+          min-width: 0;
+          width: 100%;
+          max-width: 100vw;
+        }
+
         .player-shell {
+          width: 100vw;
+          max-width: 100vw;
           border-radius: 0;
+        }
+
+        .media-player {
+          width: 100%;
+          max-width: 100%;
         }
 
         .custom-controls {
@@ -2423,6 +2545,7 @@
 
         #customBack10,
         #customForward10,
+        #customPip,
         #customTheater,
         .speed-select {
           display: none;
@@ -2466,6 +2589,23 @@
           overflow-x: auto;
           flex-wrap: nowrap;
           scrollbar-width: none;
+        }
+
+        .mini-player {
+          right: 8px;
+          bottom: 82px;
+          grid-template-columns: minmax(104px, 130px) minmax(0, 1fr) 38px 38px;
+          width: calc(100vw - 16px);
+          min-height: 72px;
+          border-radius: 12px;
+        }
+
+        .mini-thumb {
+          margin-left: 6px;
+        }
+
+        .mini-title {
+          font-size: 13px;
         }
 
         .watch-pill {
@@ -2699,6 +2839,7 @@
                     <option value="1.5">1.5x</option>
                     <option value="2">2x</option>
                   </select>
+                  <button id="customPip" class="control-button" type="button" aria-label="Picture in picture" title="Picture in picture"></button>
                   <button id="customTheater" class="control-button" type="button" aria-label="Theater mode" title="Theater"></button>
                   <button id="customFullscreen" class="control-button" type="button" aria-label="Fullscreen" title="Fullscreen"></button>
                 </div>
@@ -2798,6 +2939,18 @@
       <button class="mobile-nav-button" type="button" data-view="history"><span>◎</span><span>You</span></button>
     </nav>
 
+    <aside id="miniPlayer" class="mini-player" aria-label="Mini player" hidden>
+      <button id="miniOpen" class="mini-open" type="button">
+        <span id="miniThumb" class="mini-thumb"></span>
+        <span class="mini-copy">
+          <span id="miniTitle" class="mini-title"></span>
+          <span id="miniMeta" class="mini-meta"></span>
+        </span>
+      </button>
+      <button id="miniPlay" class="mini-control" type="button" aria-label="Play mini player">▶</button>
+      <button id="miniClose" class="mini-control" type="button" aria-label="Close mini player">×</button>
+    </aside>
+
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js" defer></script>
     <script src="config.js"></script>
     <script>
@@ -2874,6 +3027,7 @@
       const customDuration = document.querySelector("#customDuration");
       const customSpeed = document.querySelector("#customSpeed");
       const customQuality = document.querySelector("#customQuality");
+      const customPip = document.querySelector("#customPip");
       const customTheater = document.querySelector("#customTheater");
       const customFullscreen = document.querySelector("#customFullscreen");
       const playerModeOptions = [...document.querySelectorAll("[data-player-mode]")];
@@ -2908,6 +3062,13 @@
       const playlistClear = document.querySelector("#playlistClear");
       const watchRailList = document.querySelector("#watchRailList");
       const feedHeading = document.querySelector("#feedHeading");
+      const miniPlayer = document.querySelector("#miniPlayer");
+      const miniOpen = document.querySelector("#miniOpen");
+      const miniThumb = document.querySelector("#miniThumb");
+      const miniTitle = document.querySelector("#miniTitle");
+      const miniMeta = document.querySelector("#miniMeta");
+      const miniPlay = document.querySelector("#miniPlay");
+      const miniClose = document.querySelector("#miniClose");
 
       let selectedVideo = null;
       let currentVideos = [];
@@ -2940,12 +3101,17 @@
       let playerMode = window.localStorage.getItem(storageNames.playerMode) || "custom";
       let controlsTimer = 0;
       let layoutTimer = 0;
+      let userEnabledPiP = false;
 
       hydrateInputs();
+      queryInput.setAttribute("role", "combobox");
+      queryInput.setAttribute("aria-controls", "suggestions");
+      queryInput.setAttribute("aria-expanded", "false");
       renderChips();
       setPlayerMode(playerMode);
       renderStaticPlayerIcons();
       initRemotePlayback();
+      initPictureInPicture();
       renderPlaylistPanel();
 
       for (const input of [youtubeKeyInput, resolverBaseInput, resolverKeyInput]) {
@@ -3078,6 +3244,7 @@
 
       centerPlayButton.addEventListener("click", togglePlayback);
       castButton.addEventListener("click", requestCast);
+      customPip.addEventListener("click", () => togglePictureInPicture({ userInitiated: true }));
       customBack10.addEventListener("click", () => seekRelative(-10));
       customPlay.addEventListener("click", togglePlayback);
       customForward10.addEventListener("click", () => seekRelative(10));
@@ -3108,6 +3275,17 @@
         document.body.classList.toggle("is-theater");
       });
       customFullscreen.addEventListener("click", toggleFullscreen);
+      miniOpen.addEventListener("click", () => {
+        if (selectedVideo) openWatchPage(selectedVideo, { updateHistory: true, resume: true });
+      });
+      miniPlay.addEventListener("click", togglePlayback);
+      miniClose.addEventListener("click", closeMiniPlayer);
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) attemptAutoPictureInPicture();
+      });
+
+      window.addEventListener("pagehide", attemptAutoPictureInPicture);
 
       window.addEventListener("scroll", () => {
         if (watchPage.hidden && nearPageBottom()) loadMoreFeed();
@@ -3161,6 +3339,7 @@
           return;
         }
 
+        userEnabledPiP = true;
         if (mediaPlayer.paused || mediaPlayer.ended) {
           mediaPlayer.play().catch(() => {});
         } else {
@@ -3208,6 +3387,7 @@
         customMute.setAttribute("aria-label", effectiveVolume === 0 ? "Unmute" : "Mute");
         customMute.title = effectiveVolume === 0 ? "Unmute" : "Mute";
         customSpeed.value = String(mediaPlayer.playbackRate || 1);
+        updateMiniPlayer();
 
         scheduleControlsHide();
       }
@@ -3327,12 +3507,80 @@
         }
       }
 
+      function initPictureInPicture() {
+        const supported = Boolean(document.pictureInPictureEnabled && mediaPlayer.requestPictureInPicture);
+        playerShell.classList.toggle("can-pip", supported);
+        customPip.disabled = !supported;
+        customPip.title = supported ? "Picture in picture" : "Picture in picture is not available";
+        mediaPlayer.addEventListener("enterpictureinpicture", updatePictureInPictureState);
+        mediaPlayer.addEventListener("leavepictureinpicture", updatePictureInPictureState);
+      }
+
+      async function togglePictureInPicture(options = {}) {
+        if (!document.pictureInPictureEnabled || !mediaPlayer.requestPictureInPicture) return;
+        if (!resolvedLink) return;
+        userEnabledPiP = Boolean(options.userInitiated || userEnabledPiP);
+
+        try {
+          if (document.pictureInPictureElement === mediaPlayer) {
+            await document.exitPictureInPicture?.();
+          } else {
+            await mediaPlayer.requestPictureInPicture();
+          }
+        } catch (error) {
+          if (!options.silent) {
+            setPlayerMessage(error?.message || "Picture in picture is not available for this video.", true);
+          }
+        } finally {
+          updatePictureInPictureState();
+        }
+      }
+
+      function attemptAutoPictureInPicture() {
+        const isPlaying = resolvedLink && !mediaPlayer.paused && !mediaPlayer.ended;
+        if (!isPlaying || document.pictureInPictureElement || !userEnabledPiP) return;
+        togglePictureInPicture({ silent: true });
+      }
+
+      function updatePictureInPictureState() {
+        const active = document.pictureInPictureElement === mediaPlayer;
+        customPip.classList.toggle("is-active", active);
+        customPip.setAttribute("aria-label", active ? "Exit picture in picture" : "Picture in picture");
+        customPip.title = active ? "Exit picture in picture" : "Picture in picture";
+      }
+
+      function updateMiniPlayer() {
+        const shouldShow = Boolean(selectedVideo && watchPage.hidden);
+        miniPlayer.hidden = !shouldShow;
+        miniPlayer.classList.toggle("is-visible", shouldShow);
+        if (!shouldShow || !selectedVideo) return;
+
+        miniThumb.replaceChildren();
+        if (selectedVideo.thumbnail) {
+          const image = document.createElement("img");
+          image.src = selectedVideo.thumbnail;
+          image.alt = "";
+          miniThumb.append(image);
+        }
+        miniTitle.textContent = selectedVideo.title || "Playing";
+        miniMeta.textContent = selectedVideo.channel || "YouTube";
+        const isPlaying = !mediaPlayer.paused && !mediaPlayer.ended;
+        miniPlay.textContent = isPlaying ? "Ⅱ" : "▶";
+        miniPlay.setAttribute("aria-label", isPlaying ? "Pause mini player" : "Play mini player");
+      }
+
+      function closeMiniPlayer() {
+        stopPlayer({ clearSelection: true });
+        setStatus("");
+      }
+
       function renderStaticPlayerIcons() {
         castButton.innerHTML = playerIcon("cast");
         customBack10.innerHTML = playerIcon("back10");
         customPlay.innerHTML = playerIcon("play");
         customForward10.innerHTML = playerIcon("forward10");
         customMute.innerHTML = playerIcon("volumeHigh");
+        customPip.innerHTML = playerIcon("pip");
         customTheater.innerHTML = playerIcon("theater");
         customFullscreen.innerHTML = playerIcon("fullscreen");
       }
@@ -3347,6 +3595,7 @@
           volumeLow: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9zm11.5 3a4.6 4.6 0 0 0-2.1-3.86v7.72A4.6 4.6 0 0 0 15.5 12z"></path></svg>',
           mute: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9zm12.8 3 2.4-2.4-1.4-1.4-2.4 2.4L13 8.2l-1.4 1.4L14 12l-2.4 2.4 1.4 1.4 2.4-2.4 2.4 2.4 1.4-1.4z"></path></svg>',
           cast: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18v3h3a3 3 0 0 0-3-3zm0-4v2a5 5 0 0 1 5 5h2a7 7 0 0 0-7-7zm0-4v2a9 9 0 0 1 9 9h2c0-6.08-4.92-11-11-11zm0-7v5h2V5h14v10h-3v2h5V3z"></path></svg>',
+          pip: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 7H5v10h14zm2-2v14H3V5zm-4 8h-6v3h6z"></path></svg>',
           theater: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v12H3zm2 2v8h14V8z"></path></svg>',
           fullscreen: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h6v2H7v4H5zm8 0h6v6h-2V7h-4zM7 13v4h4v2H5v-6zm10 4v-4h2v6h-6v-2z"></path></svg>',
         };
@@ -3393,13 +3642,11 @@
         }
 
         if (!append) {
-          selectedVideo = null;
           currentFeedMode = options.mode || "search";
           currentFeedQuery = query;
           currentQuery = query;
           currentPageToken = "";
           currentVideos = [];
-          stopPlayer();
           updateFeedHeading(currentFeedMode === "search" ? `Search results` : titleCase(query));
           if (currentFeedMode === "search") setActiveSideItem("");
           renderLoadingSkeleton(currentFeedMode === "search" ? "Searching videos..." : "Loading videos...");
@@ -3440,8 +3687,6 @@
         currentFeedQuery = playlistUrl;
         currentQuery = playlistUrl;
         currentPageToken = "";
-        selectedVideo = null;
-        stopPlayer();
         updateFeedHeading("Playlist");
         renderLoadingSkeleton("Loading playlist...");
         setBusy(true);
@@ -3563,8 +3808,6 @@
           currentPageToken = "";
           currentVideos = [];
           homeMixCursor = 0;
-          selectedVideo = null;
-          stopPlayer();
           updateFeedHeading("");
           renderLoadingSkeleton("Loading recommendations...");
         }
@@ -3633,8 +3876,6 @@
           currentQuery = "";
           currentVideos = [];
           subscriptionCursor = 0;
-          selectedVideo = null;
-          stopPlayer();
           updateFeedHeading("Subscriptions");
           renderSubscriptionsContent([], { loading: true });
         }
@@ -3782,8 +4023,6 @@
         currentFeedQuery = "";
         currentQuery = "";
         currentVideos = [...watchHistory];
-        selectedVideo = null;
-        stopPlayer();
         updateFeedHeading("Watch history");
         if (!watchHistory.length) {
           resultsEl.innerHTML = `<div class="empty">Videos you open will appear here.</div>`;
@@ -4625,15 +4864,18 @@
       }
 
       function selectVideo(video) {
+        userEnabledPiP = true;
         openWatchPage(video, { updateHistory: true });
       }
 
       function openWatchPage(video, options = {}) {
+        const isCurrentVideo = selectedVideo && sameVideo(selectedVideo, video);
+        const canResumeExisting = Boolean(options.resume && isCurrentVideo && resolvedLink);
         selectedVideo = video;
-        resolvedLink = "";
         document.body.classList.add("is-watch");
         feedPage.hidden = true;
         watchPage.hidden = false;
+        updateMiniPlayer();
         document.title = `${video.title} - YouTube Link Frontend`;
         updateWatchUrl(video, options);
         renderWatchDetails(video);
@@ -4642,13 +4884,23 @@
         renderSubscribeState(video);
         renderSaveState(video);
         renderPlaylistPanel();
-        stopPlayer({ keepPoster: false });
-        resetQualityOptions();
-        preparePlayer(video);
         window.scrollTo({ top: 0, behavior: "smooth" });
         window.setTimeout(() => playerShell.focus({ preventScroll: true }), 0);
-        resolveVideo(video);
-        loadAvailableFormats(video);
+        if (canResumeExisting) {
+          watchOpenDirect.href = resolvedLink;
+          watchOpenDirect.setAttribute("aria-disabled", "false");
+          watchCopy.disabled = false;
+          playerOverlay.classList.add("is-ready");
+          updatePlayerState();
+          showCustomControls();
+        } else {
+          resolvedLink = "";
+          stopPlayer({ keepPoster: false });
+          resetQualityOptions();
+          preparePlayer(video);
+          resolveVideo(video);
+          loadAvailableFormats(video);
+        }
         loadChannelDetails(video);
         loadRelatedVideos(video);
       }
@@ -4658,7 +4910,7 @@
         feedPage.hidden = false;
         watchPage.hidden = true;
         document.title = "YouTube Link Frontend";
-        stopPlayer();
+        updateMiniPlayer();
         if (options.updateHistory) {
           const nextUrl = new URL(window.location.href);
           nextUrl.searchParams.delete("v");
@@ -4942,12 +5194,17 @@
       function stopPlayer(options = {}) {
         if (resolveController) resolveController.abort();
         cleanupHls();
+        if (document.pictureInPictureElement === mediaPlayer) {
+          document.exitPictureInPicture?.().catch(() => {});
+        }
         mediaPlayer.pause();
         mediaPlayer.removeAttribute("src");
         if (!options.keepPoster) mediaPlayer.removeAttribute("poster");
         mediaPlayer.load();
         resolvedLink = "";
+        if (options.clearSelection) selectedVideo = null;
         updatePlayerState();
+        updateMiniPlayer();
       }
 
       function cleanupHls() {
@@ -5305,12 +5562,14 @@
 
         suggestionsEl.replaceChildren(fragment);
         suggestionsEl.classList.add("is-open");
+        queryInput.setAttribute("aria-expanded", "true");
       }
 
       function closeSuggestions() {
         suggestionsEl.classList.remove("is-open");
         suggestionsEl.replaceChildren();
         activeSuggestionIndex = -1;
+        queryInput.setAttribute("aria-expanded", "false");
         queryInput.removeAttribute("aria-activedescendant");
       }
 

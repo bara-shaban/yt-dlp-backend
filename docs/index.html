@@ -7,20 +7,26 @@
     <style>
       :root {
         color-scheme: dark;
-        --bg: #0f0f0f;
-        --panel: #0f0f0f;
-        --panel-soft: #222222;
-        --panel-hover: #272727;
-        --text: #f1f1f1;
-        --muted: #aaaaaa;
-        --line: #303030;
+        --bg: #0b0b0b;
+        --panel: #111111;
+        --panel-soft: #1d1d1d;
+        --panel-raised: #202020;
+        --panel-hover: #2a2a2a;
+        --text: #f6f6f6;
+        --muted: #a6a6a6;
+        --muted-soft: #777777;
+        --line: #2d2d2d;
         --accent: #ff0033;
+        --accent-soft: rgba(255, 0, 51, 0.18);
         --blue: #3ea6ff;
-        --chip: #272727;
+        --chip: #242424;
         --chip-active: #f1f1f1;
         --chip-active-text: #0f0f0f;
         --shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
         --soft-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+        --radius-card: 10px;
+        --radius-control: 999px;
+        --max-feed: 1680px;
         --sidebar: 240px;
         --topbar: 64px;
       }
@@ -29,18 +35,30 @@
         box-sizing: border-box;
       }
 
+      html {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+        background: var(--bg);
+      }
+
       body {
         margin: 0;
+        width: 100%;
+        max-width: 100%;
         min-height: 100vh;
         background: var(--bg);
         color: var(--text);
-        font-family: Roboto, Arial, Helvetica, sans-serif;
+        overflow-x: hidden;
+        font-family: Inter, Roboto, "Helvetica Neue", Arial, Helvetica, sans-serif;
+        line-height: 1.4;
         letter-spacing: 0;
         -webkit-font-smoothing: antialiased;
       }
 
       button,
       input,
+      select,
       textarea {
         font: inherit;
       }
@@ -59,13 +77,16 @@
         z-index: 30;
         inset: 0 0 auto 0;
         display: grid;
-        grid-template-columns: var(--sidebar) minmax(220px, 720px) 1fr;
-        gap: 18px;
+        grid-template-columns: var(--sidebar) minmax(220px, 760px) 1fr;
+        gap: clamp(12px, 1.6vw, 24px);
         align-items: center;
         height: var(--topbar);
-        padding: 0 24px 0 20px;
-        background: rgba(15, 15, 15, 0.98);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        width: 100%;
+        max-width: 100vw;
+        padding: 0 clamp(16px, 2vw, 28px) 0 20px;
+        overflow: hidden;
+        background: rgba(11, 11, 11, 0.98);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         backdrop-filter: blur(12px);
       }
 
@@ -86,6 +107,7 @@
         background: transparent;
         color: var(--text);
         font-size: 24px;
+        transition: background 140ms ease, transform 140ms ease;
       }
 
       .icon-button:hover {
@@ -99,6 +121,7 @@
         min-width: 0;
         font-size: 21px;
         font-weight: 800;
+        letter-spacing: 0;
         white-space: nowrap;
       }
 
@@ -137,8 +160,8 @@
         height: 40px;
         border: 1px solid var(--line);
         border-right: 0;
-        border-radius: 999px 0 0 999px;
-        background: #121212;
+        border-radius: var(--radius-control) 0 0 var(--radius-control);
+        background: #101010;
         color: var(--text);
         outline: none;
         padding: 0 18px;
@@ -153,8 +176,8 @@
       .search-button {
         height: 40px;
         border: 1px solid var(--line);
-        border-radius: 0 999px 999px 0;
-        background: #222222;
+        border-radius: 0 var(--radius-control) var(--radius-control) 0;
+        background: var(--panel-raised);
         color: var(--text);
         font-size: 22px;
       }
@@ -179,7 +202,7 @@
         gap: 8px;
         min-height: 40px;
         border: 1px solid var(--line);
-        border-radius: 999px;
+        border-radius: var(--radius-control);
         color: var(--blue);
         padding: 0 14px;
         font-weight: 700;
@@ -199,8 +222,9 @@
         display: none;
         max-height: 330px;
         overflow: auto;
-        border-radius: 12px;
-        background: #212121;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 14px;
+        background: var(--panel-raised);
         box-shadow: var(--shadow);
         padding: 8px;
       }
@@ -251,7 +275,7 @@
         width: var(--sidebar);
         overflow: auto;
         background: var(--bg);
-        padding: 12px 12px 24px;
+        padding: 10px 12px 24px;
       }
 
       .side-section {
@@ -279,7 +303,7 @@
         grid-template-columns: 34px minmax(0, 1fr);
         align-items: center;
         width: 100%;
-        min-height: 40px;
+        min-height: 42px;
         border: 0;
         border-radius: 10px;
         background: transparent;
@@ -345,7 +369,14 @@
 
       .content {
         margin-left: var(--sidebar);
-        padding: calc(var(--topbar) + 22px) 24px 48px;
+        width: calc(100% - var(--sidebar));
+        max-width: 100vw;
+        padding: calc(var(--topbar) + 18px) clamp(16px, 2vw, 32px) 56px;
+      }
+
+      .feed-page {
+        max-width: var(--max-feed);
+        margin: 0 auto;
       }
 
       .chips {
@@ -353,18 +384,19 @@
         z-index: 15;
         top: var(--topbar);
         display: flex;
-        gap: 12px;
+        gap: 8px;
         overflow-x: auto;
-        background: rgba(15, 15, 15, 0.98);
-        padding: 8px 0 18px;
+        background: rgba(11, 11, 11, 0.98);
+        padding: 8px 0 16px;
         scrollbar-width: none;
       }
 
       .feed-heading {
-        margin: 0 0 18px;
-        font-size: 28px;
-        line-height: 1.2;
-        font-weight: 900;
+        margin: 0 0 16px;
+        font-size: clamp(22px, 2vw, 30px);
+        line-height: 1.15;
+        font-weight: 850;
+        letter-spacing: 0;
       }
 
       .chips::-webkit-scrollbar {
@@ -373,15 +405,16 @@
 
       .chip {
         flex: 0 0 auto;
-        min-height: 32px;
+        min-height: 34px;
         border: 0;
-        border-radius: 8px;
+        border-radius: 9px;
         background: var(--chip);
         color: var(--text);
-        padding: 0 13px;
-        font-size: 14px;
+        padding: 0 14px;
+        font-size: 13px;
         font-weight: 800;
         white-space: nowrap;
+        transition: background 140ms ease, color 140ms ease;
       }
 
       .chip:hover {
@@ -395,9 +428,9 @@
 
       .status {
         min-height: 22px;
-        margin: 0 0 14px;
+        margin: 0 0 16px;
         color: var(--muted);
-        font-size: 14px;
+        font-size: 13px;
       }
 
       .status.error {
@@ -406,19 +439,20 @@
 
       .feed-stream {
         display: grid;
-        gap: 38px;
+        gap: 42px;
       }
 
       .video-grid,
       .video-grid-block {
         display: grid;
-        grid-template-columns: repeat(3, minmax(240px, 1fr));
-        gap: 34px 18px;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 36px 20px;
       }
 
       .video-card {
         min-width: 0;
         border: 0;
+        border-radius: var(--radius-card);
         background: transparent;
         color: var(--text);
         padding: 0;
@@ -462,8 +496,9 @@
         width: 100%;
         aspect-ratio: 16 / 9;
         overflow: hidden;
-        border-radius: 12px;
-        background: #222222;
+        border-radius: var(--radius-card);
+        background: #191919;
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
       }
 
       .thumb img {
@@ -471,11 +506,11 @@
         height: 100%;
         object-fit: cover;
         display: block;
-        transition: transform 160ms ease;
+        transition: transform 180ms ease, filter 180ms ease;
       }
 
       .video-card:hover .thumb img {
-        transform: scale(1.025);
+        transform: scale(1.018);
       }
 
       .duration {
@@ -492,16 +527,16 @@
 
       .video-info {
         display: grid;
-        grid-template-columns: 36px minmax(0, 1fr) 28px;
+        grid-template-columns: 38px minmax(0, 1fr) 24px;
         gap: 10px;
-        padding-top: 12px;
+        padding-top: 10px;
       }
 
       .avatar {
         display: inline-grid;
         place-items: center;
-        width: 36px;
-        height: 36px;
+        width: 38px;
+        height: 38px;
         border-radius: 50%;
         background: linear-gradient(135deg, #1aa9a9, #8d54ff);
         color: #ffffff;
@@ -529,17 +564,17 @@
         -webkit-box-orient: vertical;
         -webkit-line-clamp: 2;
         color: var(--text);
-        font-size: 16px;
-        line-height: 1.3;
-        font-weight: 800;
+        font-size: 15px;
+        line-height: 1.32;
+        font-weight: 760;
       }
 
       .video-meta {
         display: grid;
         gap: 3px;
         color: var(--muted);
-        font-size: 14px;
-        line-height: 1.25;
+        font-size: 13px;
+        line-height: 1.35;
       }
 
       .channel-link {
@@ -584,17 +619,24 @@
       }
 
       .card-menu {
-        color: var(--text);
-        font-size: 22px;
+        color: var(--muted);
+        font-size: 20px;
+        opacity: 0.74;
         text-align: center;
+      }
+
+      .video-card:hover .card-menu {
+        color: var(--text);
+        opacity: 1;
       }
 
       .empty {
         border: 1px solid var(--line);
-        border-radius: 12px;
-        background: #181818;
+        border-radius: var(--radius-card);
+        background: var(--panel);
         color: var(--muted);
-        padding: 22px;
+        padding: clamp(18px, 3vw, 28px);
+        line-height: 1.45;
       }
 
       .empty strong {
@@ -620,12 +662,12 @@
       .skeleton-avatar {
         position: relative;
         overflow: hidden;
-        background: #222222;
+        background: #1f1f1f;
       }
 
       .skeleton-thumb {
         aspect-ratio: 16 / 9;
-        border-radius: 12px;
+        border-radius: var(--radius-card);
       }
 
       .skeleton-row {
@@ -674,11 +716,11 @@
 
       .channel-hero {
         display: grid;
-        grid-template-columns: 96px minmax(0, 1fr) auto;
-        gap: 18px;
+        grid-template-columns: 104px minmax(0, 1fr) auto;
+        gap: 20px;
         align-items: center;
-        margin-bottom: 20px;
-        padding-bottom: 20px;
+        margin-bottom: 18px;
+        padding-bottom: 22px;
         border-bottom: 1px solid var(--line);
       }
 
@@ -687,10 +729,10 @@
         min-height: clamp(92px, 16vw, 210px);
         margin: 0 0 22px;
         overflow: hidden;
-        border-radius: 12px;
+        border-radius: var(--radius-card);
         background:
-          linear-gradient(135deg, rgba(255, 0, 51, 0.24), rgba(62, 166, 255, 0.14)),
-          #202020;
+          linear-gradient(135deg, rgba(255, 0, 51, 0.18), rgba(62, 166, 255, 0.12)),
+          var(--panel-raised);
       }
 
       .channel-banner img {
@@ -704,8 +746,8 @@
       .channel-avatar-large {
         display: inline-grid;
         place-items: center;
-        width: 96px;
-        height: 96px;
+        width: 104px;
+        height: 104px;
         border-radius: 50%;
         background: linear-gradient(135deg, #1aa9a9, #8d54ff);
         color: #ffffff;
@@ -724,8 +766,8 @@
         overflow: hidden;
         margin: 0 0 8px;
         color: var(--text);
-        font-size: 32px;
-        line-height: 1.15;
+        font-size: clamp(28px, 3vw, 42px);
+        line-height: 1.08;
         font-weight: 900;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -736,7 +778,7 @@
         flex-wrap: wrap;
         gap: 6px 10px;
         color: var(--muted);
-        font-size: 14px;
+        font-size: 13px;
       }
 
       .channel-description {
@@ -747,8 +789,8 @@
         max-width: 920px;
         margin: 10px 0 0;
         color: var(--muted);
-        font-size: 14px;
-        line-height: 1.45;
+        font-size: 13px;
+        line-height: 1.5;
       }
 
       .channel-actions {
@@ -762,11 +804,11 @@
         z-index: 12;
         top: calc(var(--topbar) + 54px);
         display: flex;
-        gap: 24px;
+        gap: 26px;
         overflow-x: auto;
         margin: -4px 0 20px;
         border-bottom: 1px solid var(--line);
-        background: rgba(15, 15, 15, 0.98);
+        background: rgba(11, 11, 11, 0.98);
         scrollbar-width: none;
       }
 
@@ -782,7 +824,8 @@
         background: transparent;
         color: var(--muted);
         padding: 0 2px;
-        font-weight: 900;
+        font-size: 13px;
+        font-weight: 850;
       }
 
       .channel-tab.is-active {
@@ -794,8 +837,8 @@
         max-width: 920px;
         display: grid;
         gap: 12px;
-        border-radius: 12px;
-        background: #181818;
+        border-radius: var(--radius-card);
+        background: var(--panel);
         padding: 18px;
       }
 
@@ -803,8 +846,8 @@
       .playlist-grid-heading {
         margin: 0;
         color: var(--text);
-        font-size: 20px;
-        font-weight: 900;
+        font-size: 19px;
+        font-weight: 850;
       }
 
       .channel-about p {
@@ -817,8 +860,8 @@
 
       .playlist-grid {
         display: grid;
-        grid-template-columns: repeat(3, minmax(220px, 1fr));
-        gap: 24px 16px;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 26px 18px;
       }
 
       .playlist-card {
@@ -922,8 +965,8 @@
         align-items: center;
         flex: 0 0 220px;
         border: 0;
-        border-radius: 12px;
-        background: #181818;
+        border-radius: var(--radius-card);
+        background: var(--panel);
         color: var(--text);
         padding: 10px;
         text-align: left;
@@ -971,9 +1014,9 @@
         align-items: center;
         gap: 10px;
         margin: 0 0 18px;
-        font-size: 20px;
+        font-size: 19px;
         line-height: 1.2;
-        font-weight: 900;
+        font-weight: 850;
       }
 
       .shorts-mark {
@@ -990,7 +1033,7 @@
       .shorts-grid {
         display: grid;
         grid-template-columns: repeat(5, minmax(150px, 1fr));
-        gap: 16px;
+        gap: 18px;
       }
 
       .short-card {
@@ -1043,15 +1086,16 @@
 
       body.is-watch .content {
         margin-left: 0;
-        padding: calc(var(--topbar) + 30px) 24px 56px;
+        width: 100%;
+        padding: calc(var(--topbar) + 24px) clamp(16px, 2vw, 28px) 56px;
       }
 
       .watch-page {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(330px, 402px);
-        gap: 24px;
+        grid-template-columns: minmax(0, 1fr) minmax(340px, 420px);
+        gap: clamp(18px, 2vw, 30px);
         align-items: start;
-        max-width: 1840px;
+        max-width: 1720px;
         margin: 0 auto;
       }
 
@@ -1068,9 +1112,9 @@
         overflow: hidden;
         width: 100%;
         aspect-ratio: 16 / 9;
-        border-radius: 12px;
+        border-radius: var(--radius-card);
         background: #000000;
-        box-shadow: 0 22px 54px rgba(0, 0, 0, 0.35);
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42);
       }
 
       .media-player {
@@ -1146,16 +1190,16 @@
         left: 0;
         display: grid;
         gap: 7px;
-        padding: 0 14px 12px;
+        padding: 0 clamp(10px, 1.4vw, 16px) 12px;
         color: #ffffff;
-        background: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.72));
+        background: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.82));
         opacity: 0;
         transform: translateY(10px);
         transition: opacity 160ms ease, transform 160ms ease;
       }
 
       .player-shell.has-cast .cast-button {
-        pointer-events: auto;
+        pointer-events: none;
       }
 
       .player-shell.is-custom.show-controls .custom-controls,
@@ -1164,11 +1208,10 @@
         transform: translateY(0);
       }
 
-      .player-shell.has-cast.is-custom.show-controls .cast-button,
-      .player-shell.has-cast.is-custom:not(.is-playing) .cast-button,
-      .player-shell.has-cast.is-native.show-controls .cast-button,
-      .player-shell.has-cast.is-native:not(.is-playing) .cast-button {
+      .player-shell.has-cast.show-controls .cast-button,
+      .player-shell.has-cast:focus-within .cast-button {
         opacity: 1;
+        pointer-events: auto;
         transform: translateY(0);
       }
 
@@ -1189,6 +1232,10 @@
 
       .player-shell.is-native .custom-controls,
       .player-shell.is-native .center-play {
+        display: none;
+      }
+
+      .player-shell:not(.can-pip) #customPip {
         display: none;
       }
 
@@ -1238,7 +1285,7 @@
       .control-row {
         display: flex;
         align-items: center;
-        gap: 7px;
+        gap: 6px;
         min-height: 36px;
       }
 
@@ -1256,7 +1303,12 @@
       }
 
       .control-button.primary {
-        background: rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.18);
+      }
+
+      .control-button.is-active {
+        background: rgba(62, 166, 255, 0.28);
+        color: #ffffff;
       }
 
       .control-button:hover {
@@ -1326,12 +1378,12 @@
       .quality-select {
         height: 34px;
         border: 0;
-        border-radius: 999px;
+        border-radius: var(--radius-control);
         background: rgba(255, 255, 255, 0.16);
         color: #ffffff;
         outline: none;
         padding: 0 10px;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 800;
       }
 
@@ -1431,8 +1483,8 @@
         display: inline-flex;
         overflow: hidden;
         border: 1px solid var(--line);
-        border-radius: 999px;
-        background: #181818;
+        border-radius: var(--radius-control);
+        background: var(--panel);
       }
 
       .player-mode-option {
@@ -1441,7 +1493,7 @@
         background: transparent;
         color: var(--muted);
         padding: 0 14px;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 900;
       }
 
@@ -1468,19 +1520,112 @@
         grid-template-columns: repeat(3, minmax(0, 1fr));
       }
 
-      .watch-title {
-        margin: 18px 0 14px;
+      .mini-player {
+        position: fixed;
+        z-index: 35;
+        right: clamp(16px, 2vw, 28px);
+        bottom: 18px;
+        display: grid;
+        grid-template-columns: minmax(112px, 168px) minmax(0, 1fr) 42px 42px;
+        gap: 10px;
+        align-items: center;
+        width: min(520px, calc(100vw - 32px));
+        min-height: 84px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 13px;
+        background: rgba(18, 18, 18, 0.96);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        backdrop-filter: blur(16px);
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(120%);
+        transition: opacity 180ms ease, transform 180ms ease;
+      }
+
+      .mini-player.is-visible {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateY(0);
+      }
+
+      .mini-open {
+        display: contents;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        text-align: left;
+      }
+
+      .mini-thumb {
+        overflow: hidden;
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        margin-left: 8px;
+        border-radius: 9px;
+        background: #000;
+      }
+
+      .mini-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .mini-copy {
+        min-width: 0;
+      }
+
+      .mini-title,
+      .mini-meta {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .mini-title {
         color: var(--text);
+        font-size: 14px;
+        font-weight: 800;
+      }
+
+      .mini-meta {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .mini-control {
+        display: grid;
+        place-items: center;
+        width: 38px;
+        height: 38px;
+        border: 0;
+        border-radius: 50%;
+        background: #303030;
+        color: #fff;
         font-size: 20px;
-        line-height: 1.35;
         font-weight: 900;
+      }
+
+      .mini-control:hover {
+        background: #424242;
+      }
+
+      .watch-title {
+        margin: 16px 0 12px;
+        color: var(--text);
+        font-size: clamp(18px, 1.6vw, 23px);
+        line-height: 1.3;
+        font-weight: 850;
       }
 
       .watch-toolbar {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 16px;
+        gap: 12px 18px;
         margin-bottom: 16px;
       }
 
@@ -1505,8 +1650,8 @@
         display: inline-grid;
         place-items: center;
         flex: 0 0 auto;
-        width: 48px;
-        height: 48px;
+        width: 44px;
+        height: 44px;
         border-radius: 50%;
         background: linear-gradient(135deg, #1aa9a9, #8d54ff);
         color: #ffffff;
@@ -1535,7 +1680,7 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        font-size: 16px;
+        font-size: 15px;
       }
 
       .watch-channel-copy span {
@@ -1546,11 +1691,11 @@
       .subscribe-button {
         min-height: 38px;
         border: 0;
-        border-radius: 999px;
+        border-radius: var(--radius-control);
         background: #f1f1f1;
         color: #0f0f0f;
-        padding: 0 18px;
-        font-size: 14px;
+        padding: 0 17px;
+        font-size: 13px;
         font-weight: 900;
         white-space: nowrap;
       }
@@ -1577,14 +1722,14 @@
         align-items: center;
         justify-content: center;
         gap: 8px;
-        min-height: 38px;
+        min-height: 36px;
         border: 0;
-        border-radius: 999px;
-        background: var(--panel-soft);
+        border-radius: var(--radius-control);
+        background: #202020;
         color: var(--text);
-        padding: 0 16px;
-        font-size: 14px;
-        font-weight: 850;
+        padding: 0 14px;
+        font-size: 13px;
+        font-weight: 800;
         white-space: nowrap;
       }
 
@@ -1607,8 +1752,8 @@
       }
 
       .watch-description {
-        border-radius: 12px;
-        background: var(--panel-soft);
+        border-radius: var(--radius-card);
+        background: #1a1a1a;
         padding: 14px 16px 16px;
       }
 
@@ -1617,7 +1762,7 @@
         flex-wrap: wrap;
         gap: 10px;
         margin-bottom: 8px;
-        font-size: 14px;
+        font-size: 13px;
       }
 
       .watch-description p {
@@ -1627,7 +1772,7 @@
         -webkit-line-clamp: 4;
         margin: 0;
         color: var(--text);
-        font-size: 14px;
+        font-size: 13px;
         line-height: 1.45;
         white-space: pre-line;
       }
@@ -1644,7 +1789,7 @@
       }
 
       .comments-panel {
-        margin-top: 28px;
+        margin-top: 30px;
       }
 
       .comments-heading {
@@ -1656,9 +1801,9 @@
 
       .comments-heading h2 {
         margin: 0;
-        font-size: 20px;
+        font-size: 19px;
         line-height: 1.25;
-        font-weight: 900;
+        font-weight: 850;
       }
 
       .comment-composer {
@@ -1714,7 +1859,7 @@
         position: sticky;
         top: calc(var(--topbar) + 16px);
         display: grid;
-        gap: 12px;
+        gap: 14px;
         min-width: 0;
       }
 
@@ -1724,8 +1869,8 @@
         width: 100%;
         min-height: 76px;
         border: 0;
-        border-radius: 12px;
-        background: #2b2b2b;
+        border-radius: var(--radius-card);
+        background: var(--panel-raised);
         color: var(--text);
         padding: 13px 16px;
         text-align: left;
@@ -1765,8 +1910,8 @@
       .playlist-panel {
         overflow: hidden;
         border: 1px solid var(--line);
-        border-radius: 12px;
-        background: #181818;
+        border-radius: var(--radius-card);
+        background: var(--panel);
       }
 
       .playlist-panel[hidden] {
@@ -1900,7 +2045,7 @@
       .rail-card {
         display: grid;
         grid-template-columns: 168px minmax(0, 1fr) 20px;
-        gap: 9px;
+        gap: 10px;
         width: 100%;
         min-width: 0;
         border: 0;
@@ -1919,7 +2064,7 @@
         overflow: hidden;
         aspect-ratio: 16 / 9;
         border-radius: 8px;
-        background: #222222;
+        background: #191919;
       }
 
       .rail-thumb img {
@@ -1940,9 +2085,9 @@
         -webkit-box-orient: vertical;
         -webkit-line-clamp: 2;
         margin: 0 0 5px;
-        font-size: 14px;
-        line-height: 1.28;
-        font-weight: 900;
+        font-size: 13px;
+        line-height: 1.3;
+        font-weight: 800;
       }
 
       .rail-meta {
@@ -1954,7 +2099,7 @@
       }
 
       .rail-menu {
-        color: var(--text);
+        color: var(--muted);
         font-size: 18px;
         line-height: 1;
       }
@@ -1973,8 +2118,8 @@
         display: none;
         width: min(420px, calc(100vw - 32px));
         border: 1px solid var(--line);
-        border-radius: 16px;
-        background: #212121;
+        border-radius: 12px;
+        background: var(--panel-raised);
         box-shadow: var(--shadow);
         padding: 16px;
       }
@@ -2061,7 +2206,7 @@
         place-items: center;
         min-height: 38px;
         border: 1px solid var(--line);
-        border-radius: 999px;
+        border-radius: var(--radius-control);
         background: #303030;
         color: var(--text);
         padding: 0 10px;
@@ -2094,9 +2239,14 @@
         left: 0;
         display: none;
         grid-template-columns: repeat(4, minmax(0, 1fr));
-        min-height: 64px;
+        width: auto;
+        min-width: 0;
+        max-width: none;
+        min-height: calc(64px + env(safe-area-inset-bottom));
         border-top: 1px solid var(--line);
-        background: rgba(15, 15, 15, 0.98);
+        background: rgba(11, 11, 11, 0.98);
+        padding-bottom: env(safe-area-inset-bottom);
+        overflow: hidden;
         backdrop-filter: blur(12px);
       }
 
@@ -2105,6 +2255,7 @@
         place-items: center;
         align-content: center;
         gap: 3px;
+        min-width: 0;
         border: 0;
         background: transparent;
         color: var(--text);
@@ -2118,6 +2269,13 @@
         line-height: 1;
       }
 
+      .mobile-nav-button span:last-child {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
       .mobile-nav-button.is-active {
         color: #ffffff;
       }
@@ -2128,7 +2286,7 @@
         }
 
         .topbar {
-          grid-template-columns: var(--sidebar) minmax(220px, 720px) 1fr;
+          grid-template-columns: var(--sidebar) minmax(220px, 760px) 1fr;
         }
 
         .logo span:not(.play-mark),
@@ -2224,6 +2382,8 @@
           grid-template-columns: 1fr;
           gap: 7px;
           height: var(--topbar);
+          width: 100vw;
+          max-width: 100vw;
           padding: 7px 12px 10px;
         }
 
@@ -2233,7 +2393,10 @@
         }
 
         .logo {
+          max-width: calc(100vw - 76px);
+          overflow: hidden;
           font-size: 18px;
+          text-overflow: ellipsis;
         }
 
         .logo span:not(.play-mark) {
@@ -2253,6 +2416,7 @@
 
         .search-wrap {
           grid-template-columns: minmax(0, 1fr) 54px;
+          min-width: 0;
           width: 100%;
         }
 
@@ -2277,13 +2441,20 @@
 
         .content {
           margin-left: 0;
+          width: 100%;
+          max-width: 100vw;
+          overflow: hidden;
           padding: calc(var(--topbar) + 12px) 12px 92px;
         }
 
         .chips {
-          top: var(--topbar);
+          position: relative;
+          z-index: 1;
+          top: auto;
           gap: 8px;
           margin: 0 -12px;
+          width: calc(100% + 24px);
+          max-width: 100vw;
           padding: 8px 12px 12px;
         }
 
@@ -2295,12 +2466,16 @@
         .video-grid,
         .video-grid-block,
         .skeleton-grid {
-          grid-template-columns: 1fr;
+          grid-template-columns: minmax(0, 1fr);
           gap: 26px;
         }
 
+        .video-info {
+          grid-template-columns: 38px minmax(0, 1fr) 22px;
+        }
+
         .playlist-grid {
-          grid-template-columns: 1fr;
+          grid-template-columns: minmax(0, 1fr);
         }
 
         .shorts-grid {
@@ -2308,15 +2483,40 @@
         }
 
         body.is-watch .content {
+          width: 100%;
+          max-width: 100vw;
           padding: calc(var(--topbar) + 12px) 0 92px;
         }
 
         .watch-page {
           gap: 16px;
+          width: 100%;
+          max-width: 100vw;
+          overflow: hidden;
+        }
+
+        .watch-primary,
+        .player-stage,
+        .watch-rail,
+        .player-modebar,
+        .watch-title,
+        .watch-toolbar,
+        .watch-description,
+        .comments-panel {
+          min-width: 0;
+          width: 100%;
+          max-width: 100vw;
         }
 
         .player-shell {
+          width: 100vw;
+          max-width: 100vw;
           border-radius: 0;
+        }
+
+        .media-player {
+          width: 100%;
+          max-width: 100%;
         }
 
         .custom-controls {
@@ -2325,6 +2525,8 @@
 
         .control-row {
           gap: 4px;
+          min-width: 0;
+          overflow: hidden;
         }
 
         .control-button {
@@ -2333,21 +2535,26 @@
         }
 
         .volume-slider {
-          width: 56px;
+          display: none;
         }
 
         .time-readout {
-          min-width: 86px;
+          min-width: 80px;
           font-size: 12px;
         }
 
+        #customBack10,
+        #customForward10,
+        #customPip,
+        #customTheater,
         .speed-select {
-          max-width: 62px;
-          padding: 0 4px;
+          display: none;
         }
 
         .quality-select {
-          max-width: 94px;
+          min-width: 78px;
+          max-width: 84px;
+          padding: 0 7px;
         }
 
         .player-modebar {
@@ -2366,6 +2573,7 @@
 
         .watch-title {
           font-size: 18px;
+          line-height: 1.28;
         }
 
         .watch-channel {
@@ -2383,6 +2591,29 @@
           scrollbar-width: none;
         }
 
+        .mini-player {
+          right: 8px;
+          bottom: 82px;
+          grid-template-columns: minmax(104px, 130px) minmax(0, 1fr) 38px 38px;
+          width: calc(100vw - 16px);
+          min-height: 72px;
+          border-radius: 12px;
+        }
+
+        .mini-thumb {
+          margin-left: 6px;
+        }
+
+        .mini-title {
+          font-size: 13px;
+        }
+
+        .watch-pill {
+          min-height: 34px;
+          padding: 0 12px;
+          font-size: 12px;
+        }
+
         .watch-actions::-webkit-scrollbar {
           display: none;
         }
@@ -2392,7 +2623,8 @@
         }
 
         .rail-card {
-          grid-template-columns: 132px minmax(0, 1fr) 18px;
+          grid-template-columns: minmax(126px, 38vw) minmax(0, 1fr) 16px;
+          gap: 8px;
         }
 
         .channel-hero {
@@ -2429,6 +2661,7 @@
           gap: 20px;
           margin-right: 12px;
           margin-left: 12px;
+          max-width: calc(100vw - 24px);
         }
 
         .channel-tile {
@@ -2441,6 +2674,49 @@
 
         .mobile-nav {
           display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          width: auto;
+          max-width: none;
+        }
+      }
+
+      @media (max-width: 420px) {
+        .topbar {
+          padding-right: 10px;
+          padding-left: 10px;
+        }
+
+        .search-wrap {
+          grid-template-columns: minmax(0, 1fr) 48px;
+        }
+
+        .chip {
+          min-height: 32px;
+          padding: 0 12px;
+          font-size: 12px;
+        }
+
+        .rail-card {
+          grid-template-columns: 124px minmax(0, 1fr) 14px;
+        }
+
+        .watch-channel-copy strong {
+          font-size: 14px;
+        }
+
+        .mobile-nav-button span:last-child {
+          font-size: 10px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          scroll-behavior: auto !important;
+          transition-duration: 0.01ms !important;
         }
       }
     </style>
@@ -2563,6 +2839,7 @@
                     <option value="1.5">1.5x</option>
                     <option value="2">2x</option>
                   </select>
+                  <button id="customPip" class="control-button" type="button" aria-label="Picture in picture" title="Picture in picture"></button>
                   <button id="customTheater" class="control-button" type="button" aria-label="Theater mode" title="Theater"></button>
                   <button id="customFullscreen" class="control-button" type="button" aria-label="Fullscreen" title="Fullscreen"></button>
                 </div>
@@ -2662,6 +2939,18 @@
       <button class="mobile-nav-button" type="button" data-view="history"><span>◎</span><span>You</span></button>
     </nav>
 
+    <aside id="miniPlayer" class="mini-player" aria-label="Mini player" hidden>
+      <button id="miniOpen" class="mini-open" type="button">
+        <span id="miniThumb" class="mini-thumb"></span>
+        <span class="mini-copy">
+          <span id="miniTitle" class="mini-title"></span>
+          <span id="miniMeta" class="mini-meta"></span>
+        </span>
+      </button>
+      <button id="miniPlay" class="mini-control" type="button" aria-label="Play mini player">▶</button>
+      <button id="miniClose" class="mini-control" type="button" aria-label="Close mini player">×</button>
+    </aside>
+
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js" defer></script>
     <script src="config.js"></script>
     <script>
@@ -2738,6 +3027,7 @@
       const customDuration = document.querySelector("#customDuration");
       const customSpeed = document.querySelector("#customSpeed");
       const customQuality = document.querySelector("#customQuality");
+      const customPip = document.querySelector("#customPip");
       const customTheater = document.querySelector("#customTheater");
       const customFullscreen = document.querySelector("#customFullscreen");
       const playerModeOptions = [...document.querySelectorAll("[data-player-mode]")];
@@ -2772,6 +3062,13 @@
       const playlistClear = document.querySelector("#playlistClear");
       const watchRailList = document.querySelector("#watchRailList");
       const feedHeading = document.querySelector("#feedHeading");
+      const miniPlayer = document.querySelector("#miniPlayer");
+      const miniOpen = document.querySelector("#miniOpen");
+      const miniThumb = document.querySelector("#miniThumb");
+      const miniTitle = document.querySelector("#miniTitle");
+      const miniMeta = document.querySelector("#miniMeta");
+      const miniPlay = document.querySelector("#miniPlay");
+      const miniClose = document.querySelector("#miniClose");
 
       let selectedVideo = null;
       let currentVideos = [];
@@ -2804,12 +3101,17 @@
       let playerMode = window.localStorage.getItem(storageNames.playerMode) || "custom";
       let controlsTimer = 0;
       let layoutTimer = 0;
+      let userEnabledPiP = false;
 
       hydrateInputs();
+      queryInput.setAttribute("role", "combobox");
+      queryInput.setAttribute("aria-controls", "suggestions");
+      queryInput.setAttribute("aria-expanded", "false");
       renderChips();
       setPlayerMode(playerMode);
       renderStaticPlayerIcons();
       initRemotePlayback();
+      initPictureInPicture();
       renderPlaylistPanel();
 
       for (const input of [youtubeKeyInput, resolverBaseInput, resolverKeyInput]) {
@@ -2942,6 +3244,7 @@
 
       centerPlayButton.addEventListener("click", togglePlayback);
       castButton.addEventListener("click", requestCast);
+      customPip.addEventListener("click", () => togglePictureInPicture({ userInitiated: true }));
       customBack10.addEventListener("click", () => seekRelative(-10));
       customPlay.addEventListener("click", togglePlayback);
       customForward10.addEventListener("click", () => seekRelative(10));
@@ -2972,6 +3275,17 @@
         document.body.classList.toggle("is-theater");
       });
       customFullscreen.addEventListener("click", toggleFullscreen);
+      miniOpen.addEventListener("click", () => {
+        if (selectedVideo) openWatchPage(selectedVideo, { updateHistory: true, resume: true });
+      });
+      miniPlay.addEventListener("click", togglePlayback);
+      miniClose.addEventListener("click", closeMiniPlayer);
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) attemptAutoPictureInPicture();
+      });
+
+      window.addEventListener("pagehide", attemptAutoPictureInPicture);
 
       window.addEventListener("scroll", () => {
         if (watchPage.hidden && nearPageBottom()) loadMoreFeed();
@@ -3025,6 +3339,7 @@
           return;
         }
 
+        userEnabledPiP = true;
         if (mediaPlayer.paused || mediaPlayer.ended) {
           mediaPlayer.play().catch(() => {});
         } else {
@@ -3072,6 +3387,7 @@
         customMute.setAttribute("aria-label", effectiveVolume === 0 ? "Unmute" : "Mute");
         customMute.title = effectiveVolume === 0 ? "Unmute" : "Mute";
         customSpeed.value = String(mediaPlayer.playbackRate || 1);
+        updateMiniPlayer();
 
         scheduleControlsHide();
       }
@@ -3191,12 +3507,80 @@
         }
       }
 
+      function initPictureInPicture() {
+        const supported = Boolean(document.pictureInPictureEnabled && mediaPlayer.requestPictureInPicture);
+        playerShell.classList.toggle("can-pip", supported);
+        customPip.disabled = !supported;
+        customPip.title = supported ? "Picture in picture" : "Picture in picture is not available";
+        mediaPlayer.addEventListener("enterpictureinpicture", updatePictureInPictureState);
+        mediaPlayer.addEventListener("leavepictureinpicture", updatePictureInPictureState);
+      }
+
+      async function togglePictureInPicture(options = {}) {
+        if (!document.pictureInPictureEnabled || !mediaPlayer.requestPictureInPicture) return;
+        if (!resolvedLink) return;
+        userEnabledPiP = Boolean(options.userInitiated || userEnabledPiP);
+
+        try {
+          if (document.pictureInPictureElement === mediaPlayer) {
+            await document.exitPictureInPicture?.();
+          } else {
+            await mediaPlayer.requestPictureInPicture();
+          }
+        } catch (error) {
+          if (!options.silent) {
+            setPlayerMessage(error?.message || "Picture in picture is not available for this video.", true);
+          }
+        } finally {
+          updatePictureInPictureState();
+        }
+      }
+
+      function attemptAutoPictureInPicture() {
+        const isPlaying = resolvedLink && !mediaPlayer.paused && !mediaPlayer.ended;
+        if (!isPlaying || document.pictureInPictureElement || !userEnabledPiP) return;
+        togglePictureInPicture({ silent: true });
+      }
+
+      function updatePictureInPictureState() {
+        const active = document.pictureInPictureElement === mediaPlayer;
+        customPip.classList.toggle("is-active", active);
+        customPip.setAttribute("aria-label", active ? "Exit picture in picture" : "Picture in picture");
+        customPip.title = active ? "Exit picture in picture" : "Picture in picture";
+      }
+
+      function updateMiniPlayer() {
+        const shouldShow = Boolean(selectedVideo && watchPage.hidden);
+        miniPlayer.hidden = !shouldShow;
+        miniPlayer.classList.toggle("is-visible", shouldShow);
+        if (!shouldShow || !selectedVideo) return;
+
+        miniThumb.replaceChildren();
+        if (selectedVideo.thumbnail) {
+          const image = document.createElement("img");
+          image.src = selectedVideo.thumbnail;
+          image.alt = "";
+          miniThumb.append(image);
+        }
+        miniTitle.textContent = selectedVideo.title || "Playing";
+        miniMeta.textContent = selectedVideo.channel || "YouTube";
+        const isPlaying = !mediaPlayer.paused && !mediaPlayer.ended;
+        miniPlay.textContent = isPlaying ? "Ⅱ" : "▶";
+        miniPlay.setAttribute("aria-label", isPlaying ? "Pause mini player" : "Play mini player");
+      }
+
+      function closeMiniPlayer() {
+        stopPlayer({ clearSelection: true });
+        setStatus("");
+      }
+
       function renderStaticPlayerIcons() {
         castButton.innerHTML = playerIcon("cast");
         customBack10.innerHTML = playerIcon("back10");
         customPlay.innerHTML = playerIcon("play");
         customForward10.innerHTML = playerIcon("forward10");
         customMute.innerHTML = playerIcon("volumeHigh");
+        customPip.innerHTML = playerIcon("pip");
         customTheater.innerHTML = playerIcon("theater");
         customFullscreen.innerHTML = playerIcon("fullscreen");
       }
@@ -3211,6 +3595,7 @@
           volumeLow: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9zm11.5 3a4.6 4.6 0 0 0-2.1-3.86v7.72A4.6 4.6 0 0 0 15.5 12z"></path></svg>',
           mute: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9zm12.8 3 2.4-2.4-1.4-1.4-2.4 2.4L13 8.2l-1.4 1.4L14 12l-2.4 2.4 1.4 1.4 2.4-2.4 2.4 2.4 1.4-1.4z"></path></svg>',
           cast: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18v3h3a3 3 0 0 0-3-3zm0-4v2a5 5 0 0 1 5 5h2a7 7 0 0 0-7-7zm0-4v2a9 9 0 0 1 9 9h2c0-6.08-4.92-11-11-11zm0-7v5h2V5h14v10h-3v2h5V3z"></path></svg>',
+          pip: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 7H5v10h14zm2-2v14H3V5zm-4 8h-6v3h6z"></path></svg>',
           theater: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v12H3zm2 2v8h14V8z"></path></svg>',
           fullscreen: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h6v2H7v4H5zm8 0h6v6h-2V7h-4zM7 13v4h4v2H5v-6zm10 4v-4h2v6h-6v-2z"></path></svg>',
         };
@@ -3257,13 +3642,11 @@
         }
 
         if (!append) {
-          selectedVideo = null;
           currentFeedMode = options.mode || "search";
           currentFeedQuery = query;
           currentQuery = query;
           currentPageToken = "";
           currentVideos = [];
-          stopPlayer();
           updateFeedHeading(currentFeedMode === "search" ? `Search results` : titleCase(query));
           if (currentFeedMode === "search") setActiveSideItem("");
           renderLoadingSkeleton(currentFeedMode === "search" ? "Searching videos..." : "Loading videos...");
@@ -3304,8 +3687,6 @@
         currentFeedQuery = playlistUrl;
         currentQuery = playlistUrl;
         currentPageToken = "";
-        selectedVideo = null;
-        stopPlayer();
         updateFeedHeading("Playlist");
         renderLoadingSkeleton("Loading playlist...");
         setBusy(true);
@@ -3427,8 +3808,6 @@
           currentPageToken = "";
           currentVideos = [];
           homeMixCursor = 0;
-          selectedVideo = null;
-          stopPlayer();
           updateFeedHeading("");
           renderLoadingSkeleton("Loading recommendations...");
         }
@@ -3497,8 +3876,6 @@
           currentQuery = "";
           currentVideos = [];
           subscriptionCursor = 0;
-          selectedVideo = null;
-          stopPlayer();
           updateFeedHeading("Subscriptions");
           renderSubscriptionsContent([], { loading: true });
         }
@@ -3646,8 +4023,6 @@
         currentFeedQuery = "";
         currentQuery = "";
         currentVideos = [...watchHistory];
-        selectedVideo = null;
-        stopPlayer();
         updateFeedHeading("Watch history");
         if (!watchHistory.length) {
           resultsEl.innerHTML = `<div class="empty">Videos you open will appear here.</div>`;
@@ -4489,15 +4864,18 @@
       }
 
       function selectVideo(video) {
+        userEnabledPiP = true;
         openWatchPage(video, { updateHistory: true });
       }
 
       function openWatchPage(video, options = {}) {
+        const isCurrentVideo = selectedVideo && sameVideo(selectedVideo, video);
+        const canResumeExisting = Boolean(options.resume && isCurrentVideo && resolvedLink);
         selectedVideo = video;
-        resolvedLink = "";
         document.body.classList.add("is-watch");
         feedPage.hidden = true;
         watchPage.hidden = false;
+        updateMiniPlayer();
         document.title = `${video.title} - YouTube Link Frontend`;
         updateWatchUrl(video, options);
         renderWatchDetails(video);
@@ -4506,13 +4884,23 @@
         renderSubscribeState(video);
         renderSaveState(video);
         renderPlaylistPanel();
-        stopPlayer({ keepPoster: false });
-        resetQualityOptions();
-        preparePlayer(video);
         window.scrollTo({ top: 0, behavior: "smooth" });
         window.setTimeout(() => playerShell.focus({ preventScroll: true }), 0);
-        resolveVideo(video);
-        loadAvailableFormats(video);
+        if (canResumeExisting) {
+          watchOpenDirect.href = resolvedLink;
+          watchOpenDirect.setAttribute("aria-disabled", "false");
+          watchCopy.disabled = false;
+          playerOverlay.classList.add("is-ready");
+          updatePlayerState();
+          showCustomControls();
+        } else {
+          resolvedLink = "";
+          stopPlayer({ keepPoster: false });
+          resetQualityOptions();
+          preparePlayer(video);
+          resolveVideo(video);
+          loadAvailableFormats(video);
+        }
         loadChannelDetails(video);
         loadRelatedVideos(video);
       }
@@ -4522,7 +4910,7 @@
         feedPage.hidden = false;
         watchPage.hidden = true;
         document.title = "YouTube Link Frontend";
-        stopPlayer();
+        updateMiniPlayer();
         if (options.updateHistory) {
           const nextUrl = new URL(window.location.href);
           nextUrl.searchParams.delete("v");
@@ -4806,12 +5194,17 @@
       function stopPlayer(options = {}) {
         if (resolveController) resolveController.abort();
         cleanupHls();
+        if (document.pictureInPictureElement === mediaPlayer) {
+          document.exitPictureInPicture?.().catch(() => {});
+        }
         mediaPlayer.pause();
         mediaPlayer.removeAttribute("src");
         if (!options.keepPoster) mediaPlayer.removeAttribute("poster");
         mediaPlayer.load();
         resolvedLink = "";
+        if (options.clearSelection) selectedVideo = null;
         updatePlayerState();
+        updateMiniPlayer();
       }
 
       function cleanupHls() {
@@ -5169,12 +5562,14 @@
 
         suggestionsEl.replaceChildren(fragment);
         suggestionsEl.classList.add("is-open");
+        queryInput.setAttribute("aria-expanded", "true");
       }
 
       function closeSuggestions() {
         suggestionsEl.classList.remove("is-open");
         suggestionsEl.replaceChildren();
         activeSuggestionIndex = -1;
+        queryInput.setAttribute("aria-expanded", "false");
         queryInput.removeAttribute("aria-activedescendant");
       }
 

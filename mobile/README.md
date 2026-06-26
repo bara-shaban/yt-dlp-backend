@@ -25,6 +25,28 @@ Android emulators can use:
 http://10.0.2.2:10001
 ```
 
+## Share on real phones
+
+The build scripts use `npx eas-cli`, so they can fetch the EAS CLI when needed. You can also install it once globally:
+
+```bash
+npm install -g eas-cli
+```
+
+Build a shareable Android APK:
+
+```bash
+npm run build:android:apk
+```
+
+When EAS finishes, open the build URL on an Android phone and install the APK. For iPhone, use:
+
+```bash
+npm run build:ios:preview
+```
+
+iOS internal builds require a paid Apple Developer account and registered device UDIDs. For wider iPhone sharing, create a production/TestFlight build with `npm run build:ios:production`.
+
 The app supports:
 
 - YouTube search through `/search`
@@ -32,6 +54,7 @@ The app supports:
 - Resolver playback through `/resolve` and `/stream`
 - Quality chips backed by `/formats`
 - Queue, playlist, and watch history persistence
+- Picture in Picture on supported iOS/Android builds
 - Regular video and Shorts separation
 - Chromecast handoff through `react-native-google-cast`
 - Swipe up on the video surface to enter fullscreen

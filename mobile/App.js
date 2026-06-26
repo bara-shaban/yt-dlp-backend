@@ -5,6 +5,7 @@ import { useVideoPlayer, VideoView } from "expo-video";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  AppState,
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -83,6 +84,8 @@ export default function App() {
   const videoViewRef = useRef(null);
   const resolvedCache = useRef(new Map());
   const playNextRef = useRef(() => {});
+  const appStateRef = useRef(AppState.currentState);
+  const pipAttemptRef = useRef(0);
   const castClient = useRemoteMediaClientHook();
   const castState = useCastStateHook();
 
@@ -122,6 +125,7 @@ export default function App() {
   const [playback, setPlayback] = useState({ currentTime: 0, duration: 0, bufferedPosition: 0 });
   const [volume, setVolume] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isPictureInPicture, setIsPictureInPicture] = useState(false);
 
   const { regularVideos, shortsVideos } = useMemo(() => splitVideoKinds(feed), [feed]);
   const channelBubbles = useMemo(() => uniqueChannels(feed).slice(0, 8), [feed]);
@@ -174,6 +178,17 @@ export default function App() {
   useEffect(() => {
     if (hydrated) loadHomeFeed(activeTopic);
   }, [hydrated, apiBase, apiKey]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      const wasActive = appStateRef.current === "active";
+      appStateRef.current = nextState;
+      if (wasActive && nextState !== "active" && currentVideo && isPlaying) {
+        startPictureInPicture({ silent: true });
+      }
+    });
+    return () => subscription.remove();
+  }, [currentVideo, isPlaying]);
 
   useEffect(() => {
     preResolveQueue(queue);
@@ -564,6 +579,21 @@ export default function App() {
     }
   };
 
+  const startPictureInPicture = async (options = {}) => {
+    if (!currentVideo) return;
+    const now = Date.now();
+    if (options.silent && now - pipAttemptRef.current < 2500) return;
+    pipAttemptRef.current = now;
+    try {
+      await videoViewRef.current?.startPictureInPicture?.();
+      setIsPictureInPicture(true);
+    } catch (error) {
+      if (!options.silent) {
+        setStatus(error?.message || "Picture in picture is not available on this device.");
+      }
+    }
+  };
+
   const togglePlayback = () => {
     if (!currentVideo) return;
     if (isPlaying) player.pause();
@@ -601,6 +631,8 @@ export default function App() {
                 currentVideo={currentVideo}
                 progressPercent={progressPercent}
                 bufferedPercent={bufferedPercent}
+                onPictureInPictureStart={() => setIsPictureInPicture(true)}
+                onPictureInPictureStop={() => setIsPictureInPicture(false)}
                 setIsFullscreen={setIsFullscreen}
               />
               <Text style={styles.watchTitle} numberOfLines={3}>{currentVideo?.title || "No video selected"}</Text>
@@ -619,6 +651,8 @@ export default function App() {
                 onPrev={playPrevious}
                 onNext={() => playNext(true)}
                 onCast={castCurrentVideo}
+                onPictureInPicture={() => startPictureInPicture()}
+                isPictureInPicture={isPictureInPicture}
                 onFullscreen={enterFullscreen}
                 disabled={!currentVideo}
               />
@@ -682,6 +716,8 @@ export default function App() {
               videoPanResponder={videoPanResponder}
               currentVideo={currentVideo}
               isPlaying={isPlaying}
+              onPictureInPictureStart={() => setIsPictureInPicture(true)}
+              onPictureInPictureStop={() => setIsPictureInPicture(false)}
               onOpen={() => setScreen("watch")}
               onPlay={togglePlayback}
               onClose={() => {
@@ -755,7 +791,7 @@ function SearchBar({ query, setQuery, runSearch, busy }) {
   );
 }
 
-function PlayerSurface({ player, videoViewRef, videoPanResponder, currentVideo, progressPercent, bufferedPercent, setIsFullscreen }) {
+function PlayerSurface({ player, videoViewRef, videoPanResponder, currentVideo, progressPercent, bufferedPercent, onPictureInPictureStart, onPictureInPictureStop, setIsFullscreen }) {
   return (
     <View style={styles.videoShell} {...videoPanResponder.panHandlers}>
       <VideoView
@@ -769,6 +805,8 @@ function PlayerSurface({ player, videoViewRef, videoPanResponder, currentVideo, 
         fullscreenOptions={{ enable: true, orientation: "landscape" }}
         onFullscreenEnter={() => setIsFullscreen(true)}
         onFullscreenExit={() => setIsFullscreen(false)}
+        onPictureInPictureStart={onPictureInPictureStart}
+        onPictureInPictureStop={onPictureInPictureStop}
       />
       {!currentVideo ? (
         <View style={styles.playerEmpty}>
@@ -784,13 +822,14 @@ function PlayerSurface({ player, videoViewRef, videoPanResponder, currentVideo, 
   );
 }
 
-function ActionRow({ isPlaying, onPlay, onPrev, onNext, onCast, onFullscreen, disabled }) {
+function ActionRow({ isPlaying, isPictureInPicture, onPlay, onPrev, onNext, onCast, onPictureInPicture, onFullscreen, disabled }) {
   return (
     <View style={styles.actionStrip}>
       <RoundAction label="Prev" icon="⏮" disabled={disabled} onPress={onPrev} />
       <RoundAction label={isPlaying ? "Pause" : "Play"} icon={isPlaying ? "Ⅱ" : "▶"} disabled={disabled} onPress={onPlay} />
       <RoundAction label="Next" icon="⏭" disabled={disabled} onPress={onNext} />
       <RoundAction label="Cast" icon="▱" disabled={disabled} onPress={onCast} />
+      <RoundAction label={isPictureInPicture ? "PiP on" : "PiP"} icon="▣" disabled={disabled} onPress={onPictureInPicture} />
       <RoundAction label="Full" icon="⛶" disabled={disabled} onPress={onFullscreen} />
     </View>
   );
@@ -984,11 +1023,21 @@ function YouPanel({ apiBase, apiKey, updateApiBase, updateApiKey, mediaOptions, 
   );
 }
 
-function MiniPlayer({ player, videoViewRef, videoPanResponder, currentVideo, isPlaying, onOpen, onPlay, onClose }) {
+function MiniPlayer({ player, videoViewRef, videoPanResponder, currentVideo, isPlaying, onPictureInPictureStart, onPictureInPictureStop, onOpen, onPlay, onClose }) {
   return (
     <View style={styles.miniPlayer}>
       <Pressable style={styles.miniVideo} onPress={onOpen} {...videoPanResponder.panHandlers}>
-        <VideoView ref={videoViewRef} player={player} style={styles.miniVideoView} nativeControls={false} allowsPictureInPicture startsPictureInPictureAutomatically={Boolean(currentVideo)} contentFit="cover" />
+        <VideoView
+          ref={videoViewRef}
+          player={player}
+          style={styles.miniVideoView}
+          nativeControls={false}
+          allowsPictureInPicture
+          startsPictureInPictureAutomatically={Boolean(currentVideo)}
+          contentFit="cover"
+          onPictureInPictureStart={onPictureInPictureStart}
+          onPictureInPictureStop={onPictureInPictureStop}
+        />
       </Pressable>
       <Pressable style={styles.miniText} onPress={onOpen}>
         <Text style={styles.miniTitle} numberOfLines={1}>{currentVideo.title}</Text>
@@ -1820,11 +1869,14 @@ const styles = StyleSheet.create({
   },
   actionStrip: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    flexWrap: "wrap",
+    justifyContent: "space-around",
+    gap: 10,
     paddingHorizontal: 16,
     paddingVertical: 18,
   },
   roundAction: {
+    width: 52,
     alignItems: "center",
     gap: 4,
   },

@@ -7,7 +7,11 @@
     "start": "expo start --clear",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "build:android:apk": "npx eas-cli build -p android --profile apk",
+    "build:android:preview": "npx eas-cli build -p android --profile preview",
+    "build:ios:preview": "npx eas-cli build -p ios --profile preview",
+    "build:ios:production": "npx eas-cli build -p ios --profile production"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",

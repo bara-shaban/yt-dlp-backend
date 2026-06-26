@@ -252,17 +252,15 @@ After UI changes in `ui/`, run `./scripts/sync-ui-docs.sh` and push `docs/` agai
 
 ### Configure the live site
 
-Edit `docs/config.js` before pushing:
+Do not commit live keys to `docs/config.js`. Prefer the GitHub Actions deploy workflow with repository secrets:
 
-```js
-window.YT_FRONTEND_CONFIG = {
-  youtubeApiKey: "YOUR_YT_KEY",
-  resolverBase: "https://your-backend.example.com",
-  resolverKey: "YOUR_RESOLVER_KEY",
-};
+```text
+YOUTUBE_API_KEY
+RESOLVER_URL
+RESOLVER_API_KEY
 ```
 
-Or pass config in the URL (values are visible in the browser):
+For the branch-based `/docs` Pages method, keep `docs/config.js` empty and pass config in the URL when testing (values are visible in the browser):
 
 ```text
 https://bara-shaban.github.io/yt-dlp-backend/?ytKey=YOUR_YT_KEY&api=https%3A%2F%2Fyour-backend.example.com&apiKey=YOUR_RESOLVER_KEY
