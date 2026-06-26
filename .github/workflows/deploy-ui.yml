@@ -1,12 +1,10 @@
-# Requires GitHub Actions billing. If your account is locked, use docs/ + branch deploy instead.
-# See RUNBOOK.md "Host The UI On GitHub Pages".
-
 name: Deploy UI to GitHub Pages
 
 on:
   push:
     branches: [main]
     paths:
+      - "docs/**"
       - "ui/**"
       - ".github/workflows/deploy-ui.yml"
   workflow_dispatch:
@@ -30,47 +28,56 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build frontend config
-        run: |
-          node <<'NODE'
-          const fs = require("node:fs");
-          const defaultResolverBase = "https://organic-space-goggles-4jwg4v79r5rpc5qg5-10000.app.github.dev";
-          function normalizeResolverBase(value) {
-            const raw = String(value || "").trim();
-            if (!raw) return "";
-            try {
-              const url = new URL(raw);
-              url.hash = "";
-              url.search = "";
-              url.pathname = url.pathname
-                .replace(/\/+(channels\/(?:search|videos)|resolve|formats|playlist|stream|search|docs|health)\/?$/i, "")
-                .replace(/\/+$/, "");
-              return url.toString().replace(/\/+$/, "");
-            } catch {
-              return raw
-                .replace(/\/+(channels\/(?:search|videos)|resolve|formats|playlist|stream|search|docs|health)\/?$/i, "")
-                .replace(/\/+$/, "");
-            }
-          }
-          const config = {
-            youtubeApiKey: process.env.YOUTUBE_API_KEY || "",
-            resolverBase: normalizeResolverBase(process.env.RESOLVER_URL || defaultResolverBase),
-            resolverKey: process.env.RESOLVER_API_KEY || "",
-            googleClientId: process.env.GOOGLE_CLIENT_ID || "",
-          };
-          const body = `window.YT_FRONTEND_CONFIG = ${JSON.stringify(config, null, 2)};\n`;
-          fs.writeFileSync("ui/config.js", body);
-          NODE
+      - name: Bake frontend config into docs/
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
           RESOLVER_URL: ${{ secrets.RESOLVER_URL }}
           RESOLVER_API_KEY: ${{ secrets.RESOLVER_API_KEY }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+
+          function normalizeResolverBase(value) {
+            const raw = String(value || "").trim();
+            if (!raw) return "";
+            const stripEndpoint = (p) =>
+              p.replace(/\/+(channels\/(?:search|videos)|resolve|formats|playlist|stream|search|docs|health)\/?$/i, "")
+               .replace(/\/+$/, "");
+            try {
+              const url = new URL(raw);
+              url.hash = "";
+              url.search = "";
+              url.pathname = stripEndpoint(url.pathname);
+              return url.toString().replace(/\/+$/, "");
+            } catch {
+              return stripEndpoint(raw);
+            }
+          }
+
+          const config = {
+            youtubeApiKey: process.env.YOUTUBE_API_KEY || "",
+            resolverBase: normalizeResolverBase(process.env.RESOLVER_URL || ""),
+            resolverKey: process.env.RESOLVER_API_KEY || "",
+            googleClientId: process.env.GOOGLE_CLIENT_ID || "",
+          };
+
+          const body = `window.YT_FRONTEND_CONFIG = ${JSON.stringify(config, null, 2)};\n`;
+          fs.writeFileSync("docs/config.js", body);
+
+          const present = Object.fromEntries(
+            Object.entries(config).map(([k, v]) => [k, v ? "set" : "empty"])
+          );
+          console.log("Baked docs/config.js:", present);
+          NODE
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ui
+          path: docs
 
       - name: Deploy to GitHub Pages
         id: deployment
