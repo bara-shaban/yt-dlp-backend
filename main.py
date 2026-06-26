@@ -42,8 +42,37 @@ def env_bool(name: str, default: bool = False) -> bool:
     return value.lower() in {"1", "true", "yes", "on"}
 
 
+def env_first(*names: str) -> str | None:
+    for name in names:
+        value = os.getenv(name)
+        if value:
+            return value
+    return None
+
+
+def load_env_file() -> None:
+    env_path = Path(os.getenv("ENV_FILE", ".env"))
+    if not env_path.exists():
+        return
+
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if key.startswith("export "):
+            key = key[7:].strip()
+        if not key or key in os.environ:
+            continue
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+            value = value[1:-1]
+        os.environ[key] = value
+
+
 def init_cookie_file() -> str | None:
-    cookie_file = os.getenv("YTDLP_COOKIES_FILE")
+    cookie_file = env_first("YTDLP_COOKIES_FILE", "YOUTUBE_COOKIES_FILE")
     if cookie_file:
         source_path = Path(cookie_file)
         if source_path.exists():
@@ -54,8 +83,8 @@ def init_cookie_file() -> str | None:
                 return str(cookie_path)
         return str(source_path)
 
-    cookie_text = os.getenv("YTDLP_COOKIES_TEXT")
-    cookie_base64 = os.getenv("YTDLP_COOKIES_BASE64")
+    cookie_text = env_first("YTDLP_COOKIES_TEXT", "YOUTUBE_COOKIES_TEXT")
+    cookie_base64 = env_first("YTDLP_COOKIES_BASE64", "YOUTUBE_COOKIES_BASE64")
     if not cookie_text and not cookie_base64:
         return None
 
@@ -70,6 +99,8 @@ def init_cookie_file() -> str | None:
     cookie_path.chmod(0o600)
     return str(cookie_path)
 
+
+load_env_file()
 
 APP_NAME = "yt-dlp media URL resolver"
 DEFAULT_FORMAT = os.getenv(

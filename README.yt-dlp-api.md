@@ -132,6 +132,21 @@ YTDLP_COOKIES_BASE64=...
 
 Redeploy the service after setting it. `/health` will show `"cookies":"configured"` when the app loaded cookies.
 
+The backend also accepts these server-side environment names, which are useful for Codespaces or other hosts:
+
+```text
+YTDLP_COOKIES_BASE64
+YTDLP_COOKIES_TEXT
+YTDLP_COOKIES_FILE
+YOUTUBE_COOKIES_BASE64
+YOUTUBE_COOKIES_TEXT
+YOUTUBE_COOKIES_FILE
+```
+
+For GitHub Codespaces, add a Codespaces secret named `YTDLP_COOKIES_BASE64` or `YOUTUBE_COOKIES_BASE64`. If you run the API directly in that shell, the backend can read it from the process environment. If you run the API inside Docker, pass the secret into the container with `-e YTDLP_COOKIES_BASE64` or `--env-file .env`; Docker does not automatically inherit every host secret.
+
+When running the backend directly with Python, the app also auto-loads a local `.env` file before reading `API_KEY`, cookie variables, and other settings. The Docker image does not copy `.env`; use Docker's `--env-file .env` or explicit `-e` flags.
+
 To inspect available formats first:
 
 ```bash

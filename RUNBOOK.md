@@ -31,6 +31,8 @@ docker build -t yt-dlp-media-url-api ./yt_dlp_api
 
 ## Run The Backend
 
+When running the backend directly with Python, it auto-loads a local `.env` file before reading secrets. In Docker, pass `.env` explicitly with `--env-file .env` or individual `-e` flags.
+
 Without cookies:
 
 ```bash
@@ -45,6 +47,17 @@ docker run --rm --name yt-dlp-backend -p 10001:10000 \
   -e YTDLP_COOKIES_FILE=/run/secrets/youtube-cookies.txt \
   yt-dlp-media-url-api
 ```
+
+With a Codespaces or hosted secret:
+
+```bash
+docker run --rm --name yt-dlp-backend -p 10001:10000 \
+  -e API_KEY=dev-secret \
+  -e YTDLP_COOKIES_BASE64 \
+  yt-dlp-media-url-api
+```
+
+If you run the backend directly in the Codespaces shell, it can read `YTDLP_COOKIES_BASE64` from the process environment. If you run it inside Docker, pass the env var into the container as shown above or use `--env-file .env`.
 
 The container listens on port `10000`. The host maps it to `10001`, so your local backend URL is:
 
@@ -327,6 +340,8 @@ yt_dlp_api
 - `CORS_ORIGINS`: allowed browser origins. Defaults to `*`.
 - `YTDLP_COOKIES_FILE`: path to mounted cookies file.
 - `YTDLP_COOKIES_BASE64`: cookies as base64 text for hosted deployments.
+- `YTDLP_COOKIES_TEXT`: raw Netscape cookies text.
+- `YOUTUBE_COOKIES_FILE`, `YOUTUBE_COOKIES_BASE64`, `YOUTUBE_COOKIES_TEXT`: aliases for the same cookie inputs.
 - `REQUEST_TIMEOUT_SECONDS`: yt-dlp timeout. Default is `90`.
 - `MAX_CONCURRENT_REQUESTS`: concurrent extraction limit. Default is `2`.
 - `DEFAULT_FORMAT`: default yt-dlp format selector.
