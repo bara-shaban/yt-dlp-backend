@@ -16,7 +16,7 @@ Use a development build for Chromecast because `react-native-google-cast` is a n
 On a physical phone, the app now defaults to:
 
 ```text
-https://organic-space-goggles-4jwg4v79r5rpc5qg5-10000.app.github.dev
+http://3.121.216.41
 ```
 
 If you need another backend, set the API URL in the app to your computer LAN IP or deployed resolver URL, for example:

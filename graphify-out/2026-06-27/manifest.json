@@ -1,0 +1,152 @@
+{
+  "__init__.py": {
+    "mtime": 1782556350.286441,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "docs/config.example.js": {
+    "mtime": 1782566157.6470315,
+    "ast_hash": "d956618bf60836e1cc108388909155fd",
+    "semantic_hash": ""
+  },
+  "docs/config.js": {
+    "mtime": 1782556350.287451,
+    "ast_hash": "77359e06e0ae5414293677b7070ca432",
+    "semantic_hash": "77359e06e0ae5414293677b7070ca432"
+  },
+  "main.py": {
+    "mtime": 1782556350.288525,
+    "ast_hash": "6658938de847c192e8849e137bb6e9eb",
+    "semantic_hash": "6658938de847c192e8849e137bb6e9eb"
+  },
+  "mobile/App.js": {
+    "mtime": 1782567212.08359,
+    "ast_hash": "08bcc80bfe17a0f6228ee5067dd88d9d",
+    "semantic_hash": ""
+  },
+  "mobile/app.json": {
+    "mtime": 1782556350.2891364,
+    "ast_hash": "12a385c2d60fd1e4658516e11a05360b",
+    "semantic_hash": "12a385c2d60fd1e4658516e11a05360b"
+  },
+  "mobile/babel.config.js": {
+    "mtime": 1782556350.2892318,
+    "ast_hash": "39626410bf17113d7391598a3d40b764",
+    "semantic_hash": "39626410bf17113d7391598a3d40b764"
+  },
+  "mobile/eas.json": {
+    "mtime": 1782556350.2893236,
+    "ast_hash": "6b04ccccb788e7f185a62ed2d469bbbd",
+    "semantic_hash": "6b04ccccb788e7f185a62ed2d469bbbd"
+  },
+  "mobile/package.json": {
+    "mtime": 1782556350.2900543,
+    "ast_hash": "f7db608037e74cdd72a5307825b690e8",
+    "semantic_hash": "f7db608037e74cdd72a5307825b690e8"
+  },
+  "scripts/run-backend-docker.sh": {
+    "mtime": 1782556350.290652,
+    "ast_hash": "3ba3cca81d9b652da4c4a7af1d412d2c",
+    "semantic_hash": "3ba3cca81d9b652da4c4a7af1d412d2c"
+  },
+  "scripts/run-stack-docker.sh": {
+    "mtime": 1782556350.2907386,
+    "ast_hash": "f37d8643a2e66cc55b8ba38bb767bfb3",
+    "semantic_hash": "f37d8643a2e66cc55b8ba38bb767bfb3"
+  },
+  "scripts/sync-ui-docs.sh": {
+    "mtime": 1782565376.7481823,
+    "ast_hash": "fc377d44f53c631e10a7a2598a6902b6",
+    "semantic_hash": ""
+  },
+  "ui/config.example.js": {
+    "mtime": 1782566097.1423683,
+    "ast_hash": "d956618bf60836e1cc108388909155fd",
+    "semantic_hash": ""
+  },
+  "ui/config.js": {
+    "mtime": 1782566097.2957556,
+    "ast_hash": "29f16e366ba5f622f19162995123b3b9",
+    "semantic_hash": ""
+  },
+  "ui/dev-server.mjs": {
+    "mtime": 1782566132.0255888,
+    "ast_hash": "aa23a967b85acde895eb5317dc284628",
+    "semantic_hash": ""
+  },
+  ".github/workflows/deploy-ui.yml": {
+    "mtime": 1782556350.2859125,
+    "ast_hash": "d3df2d1d3a79ba32bd9c61f82a6b027d",
+    "semantic_hash": "d3df2d1d3a79ba32bd9c61f82a6b027d"
+  },
+  "README.yt-dlp-api.md": {
+    "mtime": 1782556350.2862346,
+    "ast_hash": "c2fe863bd0ba29f366ec3e269371d6f9",
+    "semantic_hash": "c2fe863bd0ba29f366ec3e269371d6f9"
+  },
+  "RUNBOOK.md": {
+    "mtime": 1782556350.2863803,
+    "ast_hash": "47ae9560d268f735c2008beb9ffd5485",
+    "semantic_hash": "47ae9560d268f735c2008beb9ffd5485"
+  },
+  "docker-compose.yml": {
+    "mtime": 1782556350.2865605,
+    "ast_hash": "b4151c408e1ddc724dfbbdb3395b251a",
+    "semantic_hash": "b4151c408e1ddc724dfbbdb3395b251a"
+  },
+  "docs/ARCHITECTURE.md": {
+    "mtime": 1782565415.3168955,
+    "ast_hash": "e80aa020670bf18a9762417aae4aea06",
+    "semantic_hash": ""
+  },
+  "docs/README.md": {
+    "mtime": 1782566105.3836455,
+    "ast_hash": "673ef02a265e5adfcfe706ba74777d61",
+    "semantic_hash": ""
+  },
+  "docs/home.html": {
+    "mtime": 1782569114.23573,
+    "ast_hash": "1b8b7698375dc3230987c5beb4ffdb06",
+    "semantic_hash": ""
+  },
+  "mobile/README.md": {
+    "mtime": 1782563273.8316464,
+    "ast_hash": "2701398de6deab910106942c4c3e466a",
+    "semantic_hash": "2701398de6deab910106942c4c3e466a"
+  },
+  "render.yaml": {
+    "mtime": 1782556350.2902832,
+    "ast_hash": "34b2b6099c10182fb26df7ab18dd0030",
+    "semantic_hash": "34b2b6099c10182fb26df7ab18dd0030"
+  },
+  "requirements.txt": {
+    "mtime": 1782556350.2903845,
+    "ast_hash": "62f77f37e5f61b1a8f2c3a0e64e215fc",
+    "semantic_hash": "62f77f37e5f61b1a8f2c3a0e64e215fc"
+  },
+  "ui/home.html": {
+    "mtime": 1782569098.5273678,
+    "ast_hash": "1b8b7698375dc3230987c5beb4ffdb06",
+    "semantic_hash": ""
+  },
+  "mobile/client_secret_85565369812-ik1tbkg8tk4hpkebhkvkf18u9u87m0cj.apps.googleusercontent.com.json": {
+    "mtime": 1782565199.6618173,
+    "ast_hash": "b3fcb07506403f8ce1a5b56eb7e0fa84",
+    "semantic_hash": ""
+  },
+  "scripts/encode-cookies-base64.sh": {
+    "mtime": 1782556350.2905385,
+    "ast_hash": "45c1ade87e11fdb71c98cb0fe37d58e7",
+    "semantic_hash": ""
+  },
+  "AGENTS.md": {
+    "mtime": 1782564031.0497746,
+    "ast_hash": "d6ffdd8cb9f148fb9e2460f815c5332a",
+    "semantic_hash": ""
+  },
+  "ui/reel.html": {
+    "mtime": 1782568597.2404788,
+    "ast_hash": "d6cb04f301bc776f49e1a55bd585d4bd",
+    "semantic_hash": ""
+  }
+}

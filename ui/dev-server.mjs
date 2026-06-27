@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const uiDir = fileURLToPath(new URL(".", import.meta.url));
 const repoDir = resolve(uiDir, "..");
-const envPath = join(repoDir, ".env");
+const envPaths = [resolve(repoDir, "..", ".env"), join(repoDir, ".env")];
 const port = Number(process.env.PORT || 8080);
 const host = process.env.HOST || "127.0.0.1";
 
@@ -31,7 +31,7 @@ const server = createServer(async (request, response) => {
       return;
     }
 
-    const pathname = requestUrl.pathname === "/" ? "/index.html" : requestUrl.pathname;
+    const pathname = requestUrl.pathname === "/" ? "/home.html" : requestUrl.pathname;
     const filePath = resolve(uiDir, `.${pathname}`);
     if (!filePath.startsWith(uiDir)) {
       sendText(response, 403, "Forbidden");
@@ -68,13 +68,15 @@ async function sendConfig(response) {
     "YT_PUBLIC_API_KEY",
   ]);
   const resolverBase = firstValue(env, ["RESOLVER_URL", "YTDLP_RESOLVER_URL", "API_BASE_URL"])
-    || "http://127.0.0.1:10001";
-  const resolverKey = firstValue(env, ["RESOLVER_API_KEY", "YTDLP_API_KEY", "API_KEY"]);
+    || "http://3.121.216.41";
+  const resolverKey = firstValue(env, ["RESOLVER_API_KEY", "YTDLP_API_KEY", "API_KEY", "GENERATED_API_KEY"]);
+  const googleClientId = firstValue(env, ["GOOGLE_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_ID"]);
 
   const config = {
     youtubeApiKey,
     resolverBase,
     resolverKey,
+    googleClientId,
   };
 
   response.writeHead(200, {
@@ -85,27 +87,33 @@ async function sendConfig(response) {
 }
 
 async function readEnv() {
-  if (!existsSync(envPath)) {
-    return {};
-  }
-
-  const text = await readFile(envPath, "utf8");
   const env = {};
   const rawValues = [];
 
-  for (const line of text.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) {
+  for (const envPath of envPaths) {
+    if (!existsSync(envPath)) {
       continue;
     }
 
-    const match = /^(?:export\s+)?([A-Za-z0-9_-]+)\s*=\s*(.*)$/.exec(trimmed);
-    if (match) {
-      env[normalizeEnvKey(match[1])] = unquote(match[2]);
-      continue;
-    }
+    const text = await readFile(envPath, "utf8");
+    for (const line of text.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) {
+        continue;
+      }
 
-    rawValues.push(unquote(trimmed));
+      const match = /^(?:export\s+)?([A-Za-z0-9_-]+)\s*=\s*(.*)$/.exec(trimmed);
+      if (match) {
+        const key = normalizeEnvKey(match[1]);
+        const value = unquote(match[2]);
+        if (value || !Object.hasOwn(env, key)) {
+          env[key] = value;
+        }
+        continue;
+      }
+
+      rawValues.push(unquote(trimmed));
+    }
   }
 
   if (!firstValue(env, ["YOUTUBE_API_KEY", "YOUTUBE_DATA_API_KEY", "YT_API_KEY", "YT_PUBLIC_API_KEY"])) {

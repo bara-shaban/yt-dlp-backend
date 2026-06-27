@@ -23,10 +23,10 @@ import {
 } from "react-native";
 
 const ENV = typeof process !== "undefined" ? process.env || {} : {};
-const REMOTE_API_BASE = "https://organic-space-goggles-4jwg4v79r5rpc5qg5-10000.app.github.dev/resolve";
+const REMOTE_API_BASE = "http://3.121.216.41";
 const DEFAULT_API_BASE = normalizeApiBase(ENV.EXPO_PUBLIC_RESOLVER_URL || REMOTE_API_BASE);
 const DEFAULT_API_KEY = ENV.EXPO_PUBLIC_RESOLVER_API_KEY || "";
-const DEFAULT_FORMAT = "best[ext=mp4][height<=720][vcodec!=none][acodec!=none]/best[height<=720][vcodec!=none][acodec!=none]/best";
+const DEFAULT_FORMAT = "best[height<=720][vcodec!=none][acodec!=none]/best[height<=720]/best";
 const SHORTS_MAX_SECONDS = 180;
 const SHORTS_LEGACY_MAX_SECONDS = 65;
 const CAST_UNAVAILABLE = "unavailable";

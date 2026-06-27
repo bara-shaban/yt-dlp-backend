@@ -208,8 +208,8 @@ The UI calls the backend for `/search`, `/resolve`, `/formats`, and
 1. Setting `RESOLVER_URL` in `.env` before building (`scripts/sync-ui-docs.sh`
    bakes config into `docs/config.js`).
 2. Passing `?api=https%3A%2F%2Fyour-backend%2Fresolve&apiKey=...` in the URL.
-3. Typing the resolver URL and key into the in-page settings panel (the dock
-   at the bottom of `ui/index.html`).
+3. Typing the resolver URL and key into the in-page settings view in
+   `ui/home.html`.
 
 For Codespaces backends the URL looks like
 `https://<codespace>-10000.app.github.dev`. The port has to be set to

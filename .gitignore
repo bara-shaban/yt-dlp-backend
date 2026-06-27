@@ -6,6 +6,7 @@ __pycache__/
 cookies*.txt
 cookies.txt.before-youtube-filter
 *.cookies
+mobile/client_secret_*.json
 node_modules/
 .expo/
 dist/
